@@ -9,14 +9,5 @@
   "compatibility": {
     "version": "6.3"
   },
-  "create": "module.php",
-  "modules": [
-    {
-      "id": "{3CA77826-0E9B-4A0E-A7AD-9D6D317F1F9E}",
-      "name": "ToshibaACControl",
-      "type": "module",
-      "prefix": "TAC",
-      "file": "module.php"
-    }
-  ]
+  "create": "module.php"
 }

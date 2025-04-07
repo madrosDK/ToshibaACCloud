@@ -1,0 +1,21 @@
+{
+  "elements": [
+    {
+      "type": "ValidationTextBox",
+      "name": "Username",
+      "caption": "Benutzername"
+    },
+    {
+      "type": "PasswordTextBox",
+      "name": "Password",
+      "caption": "Passwort"
+    },
+    {
+      "type": "ValidationTextBox",
+      "name": "DeviceID",
+      "caption": "Ger\u00e4te-ID"
+    }
+  ],
+  "actions": [],
+  "status": []
+}
