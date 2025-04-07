@@ -1,0 +1,15 @@
+{
+  "id": "{C3A22B2C-9BE2-4301-B874-518197F44EDE}",
+  "name": "ToshibaAC Library",
+  "author": "madrosDK",
+  "url": "https://github.com/madrosDK/ToshibaACControl",
+  "version": "1.0",
+  "modules": [
+    {
+      "id": "{2EABED17-8A22-44E1-B7D6-CC4F789BC1B9}",
+      "name": "Toshiba AC Control",
+      "type": 3,
+      "location": "ToshibaACControl"
+    }
+  ]
+}

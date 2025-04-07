@@ -1,0 +1,22 @@
+{
+  "id": "{2EABED17-8A22-44E1-B7D6-CC4F789BC1B9}",
+  "name": "Toshiba AC Control",
+  "type": 3,
+  "vendor": "madrosDK",
+  "version": "1.0",
+  "copyright": "2024 madrosDK",
+  "url": "https://github.com/madrosDK/ToshibaACControl",
+  "compatibility": {
+    "version": "6.3"
+  },
+  "create": "module.php",
+  "modules": [
+    {
+      "id": "{3CA77826-0E9B-4A0E-A7AD-9D6D317F1F9E}",
+      "name": "ToshibaACControl",
+      "type": "module",
+      "prefix": "TAC",
+      "file": "module.php"
+    }
+  ]
+}
