@@ -4,12 +4,4 @@
   "author": "madrosDK",
   "url": "https://github.com/madrosDK/ToshibaACControl",
   "version": "1.0",
-  "modules": [
-    {
-      "id": "{2EABED17-8A22-44E1-B7D6-CC4F789BC1B9}",
-      "name": "Toshiba AC Control",
-      "type": 3,
-      "location": "ToshibaACControl"
-    }
-  ]
 }
