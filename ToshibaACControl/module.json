@@ -5,9 +5,5 @@
   "vendor": "madrosDK",
   "version": "1.0",
   "copyright": "2024 madrosDK",
-  "url": "https://github.com/madrosDK/ToshibaACControl",
-  "compatibility": {
-    "version": "6.3"
-  },
-  "create": "module.php"
+  "url": "https://github.com/madrosDK/ToshibaACControl"
 }
