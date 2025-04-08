@@ -1,10 +1,15 @@
 {
-  "id": "{0DA3CCF3-2F85-3421-8243-4B8BAFFBD357}",
-  "name": "ToshibaAC Library",
+  "id": "{7FC3D06D-965A-4012-BBD2-8C9D1F5BBF11}",
+  "name": "Toshiba AC Cloud Library",
   "author": "madrosDK",
   "url": "https://github.com/madrosDK/ToshibaACCloud",
-  "compatibility": {
-      "version": "6.4"
-  },
-  "version": "1.0"
+  "version": "1.0",
+  "modules": [
+    {
+      "id": "{B5A14C15-BF5C-456F-9A93-83B149B9C0A5}",
+      "name": "Toshiba AC Cloud Control",
+      "type": 3,
+      "location": "ToshibaACCloud"
+    }
+  ]
 }
