@@ -8,5 +8,6 @@
     "childRequirements": [],
     "implemented": [],
     "prefix": "TOSH",
+    "classname": "TOSH_ToshibaAC",
     "url": "https://github.com/madrosDK/ToshibaACCloud"
 }

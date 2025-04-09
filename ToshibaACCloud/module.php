@@ -1,6 +1,6 @@
 <?php
 
-class ToshibaACCloudLibrary extends IPSModule
+class TOSH_ToshibaAC extends IPSModule
 {
   public function Create()
   {
