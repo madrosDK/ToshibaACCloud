@@ -2,31 +2,52 @@
 
 class ToshibaACCloudLibrary extends IPSModule
 {
-    public function Create()
-    {
-        parent::Create();
-        $this->RegisterPropertyString('Username', '');
-        $this->RegisterPropertyString('Password', '');
-        $this->RegisterPropertyString('DeviceID', '');
+  public function Create()
+  {
+      parent::Create();
+      $this->RegisterPropertyString('Username', '');
+      $this->RegisterPropertyString('Password', '');
+      $this->RegisterPropertyString('DeviceID', '');
 
-        // Variablen mit Prefix TOSH
-        $this->RegisterVariableBoolean('TOSH_Power', 'Power', '~Switch', 10);
-        $this->EnableAction('TOSH_Power');
+      // Profile anlegen, falls noch nicht vorhanden
+      if (!IPS_VariableProfileExists('TOSH.Mode')) {
+          IPS_CreateVariableProfile('TOSH.Mode', 1); // 1 = Integer
+          IPS_SetVariableProfileIcon('TOSH.Mode', 'Temperature');
+          IPS_SetVariableProfileAssociation('TOSH.Mode', 0, 'Auto', '', -1);
+          IPS_SetVariableProfileAssociation('TOSH.Mode', 1, 'Cool', '', -1);
+          IPS_SetVariableProfileAssociation('TOSH.Mode', 2, 'Dry', '', -1);
+          IPS_SetVariableProfileAssociation('TOSH.Mode', 3, 'Heat', '', -1);
+          IPS_SetVariableProfileAssociation('TOSH.Mode', 4, 'Fan', '', -1);
+      }
 
-        $this->RegisterVariableFloat('TOSH_SetTemp', 'Soll-Temperatur', '~Temperature.Room', 20);
-        $this->EnableAction('TOSH_SetTemp');
+      if (!IPS_VariableProfileExists('TOSH.FanSpeed')) {
+          IPS_CreateVariableProfile('TOSH.FanSpeed', 1); // 1 = Integer
+          IPS_SetVariableProfileIcon('TOSH.FanSpeed', 'WindSpeed');
+          IPS_SetVariableProfileAssociation('TOSH.FanSpeed', 0, 'Auto', '', -1);
+          IPS_SetVariableProfileAssociation('TOSH.FanSpeed', 1, 'Low', '', -1);
+          IPS_SetVariableProfileAssociation('TOSH.FanSpeed', 2, 'Mid', '', -1);
+          IPS_SetVariableProfileAssociation('TOSH.FanSpeed', 3, 'High', '', -1);
+          IPS_SetVariableProfileAssociation('TOSH.FanSpeed', 4, 'Powerful', '', -1);
+      }
 
-        $this->RegisterVariableFloat('TOSH_RoomTemp', 'Ist-Temperatur', '~Temperature.Room', 30);
+      // Variablen mit Prefix TOSH
+      $this->RegisterVariableBoolean('TOSH_Power', 'Power', '~Switch', 10);
+      $this->EnableAction('TOSH_Power');
 
-        $this->RegisterVariableInteger('TOSH_Mode', 'Modus', 'TOSH.Mode', 40);
-        $this->EnableAction('TOSH_Mode');
+      $this->RegisterVariableFloat('TOSH_SetTemp', 'Soll-Temperatur', '~Temperature.Room', 20);
+      $this->EnableAction('TOSH_SetTemp');
 
-        $this->RegisterVariableInteger('TOSH_FanSpeed', 'Lüfterstufe', 'TOSH.FanSpeed', 50);
-        $this->EnableAction('TOSH_FanSpeed');
+      $this->RegisterVariableFloat('TOSH_RoomTemp', 'Ist-Temperatur', '~Temperature.Room', 30);
 
-        $this->RegisterVariableBoolean('TOSH_Swing', 'Swing', '~Switch', 60);
-        $this->EnableAction('TOSH_Swing');
-    }
+      $this->RegisterVariableInteger('TOSH_Mode', 'Modus', 'TOSH.Mode', 40);
+      $this->EnableAction('TOSH_Mode');
+
+      $this->RegisterVariableInteger('TOSH_FanSpeed', 'Lüfterstufe', 'TOSH.FanSpeed', 50);
+      $this->EnableAction('TOSH_FanSpeed');
+
+      $this->RegisterVariableBoolean('TOSH_Swing', 'Swing', '~Switch', 60);
+      $this->EnableAction('TOSH_Swing');
+  }
 
     public function ApplyChanges()
     {
