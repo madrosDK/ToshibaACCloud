@@ -110,13 +110,19 @@ class ToshibaACCloudLibrary extends IPSModule
         $username = $this->ReadPropertyString('Username');
         $password = $this->ReadPropertyString('Password');
 
-    /*    if ($username == '' || $password == '') {
+        if ($username == '' || $password == '') {
             echo "Benutzername oder Passwort fehlt.";
             return;
-        }*/
+        }
 
         // Verwende hier deine API-Klasse oder direkten cURL-Call
-        $loginUrl = 'https://mobileapi.toshibahomeaccontrols.com/v1/user/auth/login';
+        //$loginUrl = 'https://mobileapi.toshibahomeaccontrols.com/v1/user/auth/login';
+        $accessToken = $this->Login($username, $password);
+
+        if (!$accessToken) {
+            echo "Login fehlgeschlagen.";
+            return;
+        }
 
         $loginData = json_encode([
             'username' => $username,
