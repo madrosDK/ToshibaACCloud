@@ -104,6 +104,69 @@ class ToshibaACCloudLibrary extends IPSModule
         $result = $this->QueryAPI('/api/AC/SetACState', $data, $token);
         $this->SendDebug(__FUNCTION__, print_r($result, true), 0);
     }
+    public function TestConnection()
+    {
+        $username = $this->ReadPropertyString('Username');
+        $password = $this->ReadPropertyString('Password');
+
+        if ($username == '' || $password == '') {
+            echo "Benutzername oder Passwort fehlt.";
+            return;
+        }
+
+        // Verwende hier deine API-Klasse oder direkten cURL-Call
+        $loginUrl = 'https://mobileapi.toshibahomeaccontrols.com/v1/user/auth/login';
+
+        $loginData = json_encode([
+            'username' => $username,
+            'password' => $password
+        ]);
+
+        $ch = curl_init($loginUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $loginData);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode != 200) {
+            echo "Login fehlgeschlagen (HTTP-Code $httpCode)";
+            return;
+        }
+
+        $data = json_decode($response, true);
+        if (!isset($data['access_token'])) {
+            echo "Login fehlgeschlagen: kein Zugriffstoken erhalten.";
+            return;
+        }
+
+        $accessToken = $data['access_token'];
+
+        // Geräte abrufen
+        $deviceUrl = 'https://mobileapi.toshibahomeaccontrols.com/v1/user/device';
+
+        $ch = curl_init($deviceUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $accessToken
+        ]);
+
+        $deviceResponse = curl_exec($ch);
+        curl_close($ch);
+
+        $deviceData = json_decode($deviceResponse, true);
+
+        if (isset($deviceData[0]['deviceGuid'])) {
+            echo "Verbindung erfolgreich. DeviceID: " . $deviceData[0]['deviceGuid'];
+        } elseif (isset($deviceData['message'])) {
+            echo "Fehler: " . $deviceData['message'];
+        } else {
+            echo "Keine Geräte gefunden oder unbekannter Fehler.";
+        }
+    }
 
     private function Login($username, $password)
     {

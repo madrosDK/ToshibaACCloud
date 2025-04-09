@@ -2,20 +2,27 @@
   "elements": [
     {
       "type": "ValidationTextBox",
-      "name": "TOSH_Username",
+      "name": "Username",
       "caption": "Benutzername"
     },
     {
       "type": "PasswordTextBox",
-      "name": "TOSH_Password",
+      "name": "Password",
       "caption": "Passwort"
     },
     {
+      "type": "Label",
+      "label": "DeviceID wird automatisch abgerufen oder manuell eingetragen."
+    },
+    {
       "type": "ValidationTextBox",
-      "name": "TOSH_DeviceID",
-      "caption": "Geräte-ID"
+      "name": "DeviceID",
+      "caption": "Device ID"
+    },
+    {
+      "type": "Button",
+      "caption": "Testverbindung",
+      "onClick": "TestConnection"
     }
-  ],
-  "actions": [],
-  "status": []
+  ]
 }
