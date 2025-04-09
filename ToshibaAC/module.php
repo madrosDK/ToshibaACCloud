@@ -1,6 +1,6 @@
 <?php
 
-class TOSH_ToshibaAC extends IPSModule
+class ToshibaAC extends IPSModule
 {
   public function Create()
   {
