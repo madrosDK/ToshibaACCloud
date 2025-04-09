@@ -2,18 +2,18 @@
   "elements": [
     {
       "type": "ValidationTextBox",
-      "name": "Username",
+      "name": "TOSH_Username",
       "caption": "Benutzername"
     },
     {
       "type": "PasswordTextBox",
-      "name": "Password",
+      "name": "TOSH_Password",
       "caption": "Passwort"
     },
     {
       "type": "ValidationTextBox",
-      "name": "DeviceID",
-      "caption": "Ger\u00e4te-ID"
+      "name": "TOSH_DeviceID",
+      "caption": "Geräte-ID"
     }
   ],
   "actions": [],
