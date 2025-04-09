@@ -104,6 +104,7 @@ class ToshibaACCloudLibrary extends IPSModule
         $result = $this->QueryAPI('/api/AC/SetACState', $data, $token);
         $this->SendDebug(__FUNCTION__, print_r($result, true), 0);
     }
+
     public function TestConnection()
     {
         $username = $this->ReadPropertyString('Username');
