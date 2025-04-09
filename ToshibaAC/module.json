@@ -1,13 +1,12 @@
 {
-  "id": "{E3002EF6-1563-3E50-B59A-1D18E92DA4F8}",
-  "name": "Toshiba AC Cloud Library",
-  "type": 3,
-  "vendor": "Toshiba",
-  "aliases": [],
-  "parentRequirements": [],
-  "childRequirements": [],
-  "implemented": [],
-  "prefix": "TOSH",
-  "classname": "TOSH_ToshibaAC",
-  "url": "https://github.com/madrosDK/ToshibaACCloud"
+    "id": "{C48B499F-602D-C73E-1584-9F56C09BD83C}",
+    "name": "ToshibaAC",
+    "type": 3,
+    "vendor": "Toshiba",
+    "aliases": [],
+    "parentRequirements": [],
+    "childRequirements": [],
+    "implemented": [],
+    "prefix": "TOSH",
+    "url": "https://github.com/madrosDK/ToshibaACCloud"
 }
