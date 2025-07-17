@@ -349,8 +349,14 @@ public function DiscoverDevices()
 
     $result = $this->QueryAPI($url, null, $accessToken);
 
-    if (!$result || empty($result['ResObj'])) {
-        return "❌ Keine Geräte gefunden.";
+    $this->SendDebug(__FUNCTION__, 'Antwort von API: ' . json_encode($result), 0);
+
+    if (!$result) {
+        return "❌ Keine Antwort von API.";
+    }
+
+    if (empty($result['ResObj'])) {
+        return "❌ ResObj leer. Antwort: " . json_encode($result);
     }
 
     $devices = [];
@@ -366,7 +372,7 @@ public function DiscoverDevices()
     }
 
     if (empty($devices)) {
-        return "❌ Keine Geräte gefunden.";
+        return "❌ Keine Geräte gefunden (leere ACList).";
     }
 
     $this->SetBuffer('DiscoveredDevices', json_encode($devices));
@@ -378,6 +384,7 @@ public function DiscoverDevices()
 
     return $output;
 }
+
 
   public function GetConfigurationForm()
       {
