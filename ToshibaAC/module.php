@@ -388,7 +388,13 @@ public function GetConfigurationForm()
     // geladene Geräte aus Buffer holen
     $devices = json_decode($this->GetBuffer('DiscoveredDevices'), true) ?: [];
 
-    $options = [];
+    $options = [
+        [
+            'caption' => 'Bitte Gerät auswählen …',
+            'value'   => ''
+        ]
+    ];
+
     foreach ($devices as $device) {
         $options[] = [
             'caption' => "{$device['name']} ({$device['id']})",
@@ -404,6 +410,7 @@ public function GetConfigurationForm()
 
     return json_encode($form);
 }
+
 
 
 }
