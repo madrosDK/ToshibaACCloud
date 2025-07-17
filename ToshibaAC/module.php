@@ -37,8 +37,7 @@ class ToshibaAC extends IPSModule
   {
       switch ($Ident) {
           case 'DiscoverDevices':
-              $this->DiscoverDevices();
-              return true;
+              return $this->DiscoverDevices();  // <-- der Rückgabewert von DiscoverDevices()
 
           default:
               SetValue($this->GetIDForIdent($Ident), $Value);
@@ -46,7 +45,6 @@ class ToshibaAC extends IPSModule
               return true;
       }
   }
-
 
     public function TestConnection()
     {
@@ -380,7 +378,6 @@ public function DiscoverDevices()
 
     return $output;
 }
-
 
   public function GetConfigurationForm()
       {
