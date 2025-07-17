@@ -332,17 +332,20 @@ public function DiscoverDevices()
     $password = $this->ReadPropertyString('Password');
 
     if ($username === '' || $password === '') {
-        return "❌ Benutzername oder Passwort fehlt.";
+        echo "❌ Benutzername oder Passwort fehlt.\n";
+        return;
     }
 
     $accessToken = $this->Login($username, $password);
     if (!$accessToken) {
-        return "❌ Login fehlgeschlagen.";
+        echo "❌ Login fehlgeschlagen.\n";
+        return;
     }
 
     $consumerId = $this->GetBuffer('ConsumerId');
     if (!$consumerId) {
-        return "❌ ConsumerId nicht gefunden.";
+        echo "❌ ConsumerId nicht gefunden.\n";
+        return;
     }
 
     $url = 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerACMapping?consumerId=' . urlencode($consumerId);
@@ -351,39 +354,43 @@ public function DiscoverDevices()
 
     $this->SendDebug(__FUNCTION__, 'Antwort von API: ' . json_encode($result), 0);
 
-    if (!$result) {
-        return "❌ Keine Antwort von API.";
-    }
-
-    if (empty($result['ResObj'])) {
-        return "❌ ResObj leer. Antwort: " . json_encode($result);
+    if (!$result || empty($result['ResObj'])) {
+        echo "❌ Keine Geräte gefunden.\n";
+        return;
     }
 
     $devices = [];
     foreach ($result['ResObj'] as $entry) {
         if (!empty($entry['ACList'])) {
             foreach ($entry['ACList'] as $ac) {
+                $name = $ac['Name'] ?? 'Unbekannt';
+                $id   = $ac['Id'] ?? 'unbekannt';
                 $devices[] = [
-                    'name' => $ac['Name'] ?? 'Unbekannt',
-                    'id'   => $ac['Id'] ?? 'unbekannt'
+                    'name' => $name,
+                    'id'   => $id
                 ];
             }
         }
     }
 
     if (empty($devices)) {
-        return "❌ Keine Geräte gefunden (leere ACList).";
+        echo "❌ Keine Geräte gefunden (leere ACList).\n";
+        return;
     }
 
+    // Buffer setzen
     $this->SetBuffer('DiscoveredDevices', json_encode($devices));
 
-    $output = "✅ Gefundene Geräte:<br>";
-    foreach ($devices as $device) {
-        $output .= "📋 Name: {$device['name']} | ID: {$device['id']}<br>";
-    }
+    // Formular neu laden
+    IPS_ApplyChanges($this->InstanceID);
 
-    return $output;
+    // Ausgabe für die Konsole
+    echo "✅ Gefundene Geräte:\n";
+    foreach ($devices as $device) {
+        echo "📋 Name: {$device['name']} | ID: {$device['id']}\n";
+    }
 }
+
 
 
   public function GetConfigurationForm()
