@@ -61,11 +61,21 @@ class ToshibaAC extends IPSModule
   }
 
 
-    public function RequestAction($Ident, $Value)
-    {
-        SetValue($this->GetIDForIdent($Ident), $Value);
-        $this->SendCommand();
-    }
+  public function RequestAction($Ident, $Value)
+  {
+      switch ($Ident) {
+          case 'DiscoverDevices':
+              $this->DiscoverDevices();
+              return;
+
+          default:
+              // Standard‑Variablen bedienen
+              SetValue($this->GetIDForIdent($Ident), $Value);
+              $this->SendCommand();
+              return;
+      }
+  }
+
 
     public function TestConnection()
     {

@@ -23,7 +23,7 @@
         {
             "type": "Button",
             "caption": "Geräte abfragen",
-            "onClick": "TOSH_DiscoverDevices($id);"
+            "onClick": "IPS_RequestAction($id, 'DiscoverDevices', '');"
         },
         {
             "type": "Button",
