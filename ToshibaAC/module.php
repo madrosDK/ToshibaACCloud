@@ -352,13 +352,16 @@ public function DiscoverDevices()
         return true;
     }
 
-    $this->SendDebug(__FUNCTION__, "✅ Gefundene Geräte:", 0);
+    // Anzeige im Output
+    echo "✅ Gefundene Geräte:\n";
     foreach ($devices as $device) {
-        $this->SendDebug(__FUNCTION__, "📋 Name: {$device['name']} | ID: {$device['id']}", 0);
+        echo "📋 Name: {$device['name']} | ID: {$device['id']}\n";
     }
 
+    // Buffer speichern
     $this->SetBuffer('DiscoveredDevices', json_encode($devices));
 
+    // WICHTIG: return damit IPS sauber beendet
     return true;
 }
 
