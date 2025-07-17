@@ -359,7 +359,7 @@ public function DiscoverDevices()
         if (!empty($entry['ACList'])) {
             foreach ($entry['ACList'] as $ac) {
                 $devices[] = [
-                    'name' => $ac['ACName'] ?? 'Unbekannt',
+                    'name' => $ac['Name'] ?? 'Unbekannt',
                     'id'   => $ac['Id'] ?? 'unbekannt'
                 ];
             }
@@ -377,15 +377,15 @@ public function DiscoverDevices()
         echo "📋 Name: {$device['name']} | ID: {$device['id']}\n";
     }
 
-    // Optional: Buffer speichern, um bei SaveFormValues() zu verwenden
+    // Buffer speichern, damit GetConfigurationForm() sie anzeigen kann
     $this->SetBuffer('DiscoveredDevices', json_encode($devices));
 }
+
 
 public function GetConfigurationForm()
 {
     $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true);
 
-    // geladene Geräte aus Buffer holen
     $devices = json_decode($this->GetBuffer('DiscoveredDevices'), true) ?: [];
 
     $options = [
@@ -410,7 +410,6 @@ public function GetConfigurationForm()
 
     return json_encode($form);
 }
-
 
 
 }
