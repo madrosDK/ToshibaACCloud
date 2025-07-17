@@ -23,7 +23,7 @@
         {
             "type": "Button",
             "caption": "Geräte abfragen",
-            "onClick": "IPS_RequestAction($id, 'DiscoverDevices', '');"
+            "onClick": "IPS_RequestAction($id, 'DiscoverDevices', '')"
         },
         {
             "type": "Button",

@@ -339,19 +339,19 @@ public function DiscoverDevices()
     $password = $this->ReadPropertyString('Password');
 
     if ($username == '' || $password == '') {
-        echo "Benutzername oder Passwort fehlt.";
+        echo "❌ Benutzername oder Passwort fehlt.";
         return;
     }
 
     $accessToken = $this->Login($username, $password);
     if (!$accessToken) {
-        echo "Login fehlgeschlagen.";
+        echo "❌ Login fehlgeschlagen.";
         return;
     }
 
     $consumerId = $this->GetBuffer('ConsumerId');
     if (!$consumerId) {
-        echo "ConsumerId nicht gefunden.";
+        echo "❌ ConsumerId nicht gefunden.";
         return;
     }
 
@@ -360,7 +360,7 @@ public function DiscoverDevices()
     $result = $this->QueryAPI($url, null, $accessToken);
 
     if (!$result || empty($result['ResObj'])) {
-        echo "Keine Geräte gefunden.";
+        echo "❌ Keine Geräte gefunden.";
         return;
     }
 
@@ -377,19 +377,23 @@ public function DiscoverDevices()
     }
 
     if (empty($devices)) {
-        echo "Keine Geräte gefunden.";
+        echo "❌ Keine Geräte gefunden.";
         return;
     }
 
     // Anzeige im Output
-    echo "Gefundene Geräte:\n";
+    echo "✅ Gefundene Geräte:\n";
     foreach ($devices as $device) {
         echo "📋 Name: {$device['name']} | ID: {$device['id']}\n";
     }
 
-    // Buffer speichern, damit GetConfigurationForm() sie anzeigen kann
+    // Buffer speichern
     $this->SetBuffer('DiscoveredDevices', json_encode($devices));
+
+    // WICHTIG: return damit IPS sauber beendet
+    return true;
 }
+
 
 
 public function GetConfigurationForm()
