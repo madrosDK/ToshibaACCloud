@@ -349,35 +349,29 @@ public function DiscoverDevices()
 
     $result = $this->QueryAPI($url, null, $accessToken);
 
-    if (!$result || empty($result['ResObj'])) {
-        return "❌ Keine Geräte gefunden.";
+    if (!$result) {
+        return "❌ Keine Antwort von API.";
     }
 
-    $devices = [];
+    if (empty($result['ResObj'])) {
+        return "❌ ResObj leer. Antwort: " . json_encode($result);
+    }
+
+    $output = "✅ Gefundene Geräte:<br>";
+
     foreach ($result['ResObj'] as $entry) {
         if (!empty($entry['ACList'])) {
             foreach ($entry['ACList'] as $ac) {
-                $devices[] = [
-                    'name' => $ac['Name'] ?? 'Unbekannt',
-                    'id'   => $ac['Id'] ?? 'unbekannt'
-                ];
+                $name = $ac['Name'] ?? 'Unbekannt';
+                $id   = $ac['Id'] ?? 'unbekannt';
+                $output .= "📋 Name: {$name} | ID: {$id}<br>";
             }
         }
     }
 
-    if (empty($devices)) {
-        return "❌ Keine Geräte gefunden.";
-    }
-
-    $this->SetBuffer('DiscoveredDevices', json_encode($devices));
-
-    $output = "✅ Gefundene Geräte:<br>";
-    foreach ($devices as $device) {
-        $output .= "📋 Name: {$device['name']} | ID: {$device['id']}<br>";
-    }
-
     return $output;
 }
+
 
   public function GetConfigurationForm()
       {
