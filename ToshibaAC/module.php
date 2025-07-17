@@ -258,10 +258,10 @@ class ToshibaAC extends IPSModule
           }
 
           // Hex‑Daten
-          if (!empty($state['ACStateDataForProgram'])) {
-              $hex = $state['ACStateDataForProgram'];
-              $this->SendDebug(__FUNCTION__, 'ACStateDataForProgram: ' . $hex, 0);
-              echo "📄 ACStateDataForProgram: " . $hex . "\n";
+          if (!empty($state['ACStateData'])) {
+              $hex = $state['ACStateData'];
+              $this->SendDebug(__FUNCTION__, 'ACStateData: ' . $hex, 0);
+              echo "📄 ACStateData: " . $hex . "\n";
 
               // TODO: Hex‑Daten dekodieren
               SetValueFloat($this->GetIDForIdent('TOSH_SetTemp'), 0);
@@ -274,7 +274,7 @@ class ToshibaAC extends IPSModule
               echo "💨 FanSpeed: 0\n";
               echo "↔️ Swing: OFF\n";
           } else {
-              echo "📄 ACStateDataForProgram nicht verfügbar.\n";
+              echo "📄 ACStateData nicht verfügbar.\n";
           }
 
       } else {
