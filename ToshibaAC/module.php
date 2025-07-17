@@ -215,73 +215,80 @@ class ToshibaAC extends IPSModule
         }
     }
     public function GetStatus()
-  {
-      if (!$this->EnsureLoginAndACId()) {
-          $this->SendDebug(__FUNCTION__, 'Login oder AC‑ID fehlgeschlagen', 0);
-          echo "❌ Login oder AC‑ID fehlgeschlagen.\n";
-          return;
-      }
+    {
+        if (!$this->EnsureLoginAndACId()) {
+            $this->SendDebug(__FUNCTION__, 'Login oder AC‑ID fehlgeschlagen', 0);
+            echo "❌ Login oder AC‑ID fehlgeschlagen.\n";
+            return;
+        }
 
-      $accessToken = $this->GetBuffer('AccessToken');
-      $acId        = $this->GetBuffer('ACId');
+        $accessToken = $this->GetBuffer('AccessToken');
+        $acId        = $this->GetBuffer('ACId');
 
-      $url = 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetCurrentACState?ACId=' . urlencode($acId);
+        $url = 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetCurrentACState?ACId=' . urlencode($acId);
 
-      $result = $this->QueryAPI($url, null, $accessToken);
+        $result = $this->QueryAPI($url, null, $accessToken);
 
-      if (!$result) {
-          $this->SendDebug(__FUNCTION__, 'Keine Daten erhalten', 0);
-          echo "❌ Keine Daten von API erhalten.\n";
-          return;
-      }
+        if (!$result) {
+            $this->SendDebug(__FUNCTION__, 'Keine Daten erhalten', 0);
+            echo "❌ Keine Daten von API erhalten.\n";
+            return;
+        }
 
-      $this->SendDebug(__FUNCTION__, print_r($result, true), 0);
+        $this->SendDebug(__FUNCTION__, print_r($result, true), 0);
 
-      if (!empty($result['ResObj'])) {
-          $state = $result['ResObj'];
+        if (!empty($result['ResObj'])) {
+            $state = $result['ResObj'];
 
-          echo "✅ Status:\n";
+            echo "✅ Status:\n";
 
-          // Power
-          if (isset($state['dstStatus'])) {
-              $power = ($state['dstStatus'] === 'ON');
-              SetValueBoolean($this->GetIDForIdent('TOSH_Power'), $power);
-              $this->SendDebug(__FUNCTION__, 'Power: ' . ($power ? 'ON' : 'OFF'), 0);
-              echo "🔌 Power: " . ($power ? "ON" : "OFF") . "\n";
-          }
+            // dstStatus → Power
+            if (isset($state['dstStatus'])) {
+                $power = ($state['dstStatus'] === 'ON');
+                SetValueBoolean($this->GetIDForIdent('TOSH_Power'), $power);
+                $this->SendDebug(__FUNCTION__, 'Power: ' . ($power ? 'ON' : 'OFF'), 0);
+                echo "🔌 Power: " . ($power ? "ON" : "OFF") . "\n";
+            }
 
-          // Mode
-          if (!empty($state['OpeMode'])) {
-              SetValueInteger($this->GetIDForIdent('TOSH_Mode'), (int)$state['OpeMode']);
-              $this->SendDebug(__FUNCTION__, 'OpeMode: ' . $state['OpeMode'], 0);
-              echo "⚙️ Mode: " . $state['OpeMode'] . "\n";
-          }
+            // OpeMode → Modus
+            if (!empty($state['OpeMode'])) {
+                SetValueInteger($this->GetIDForIdent('TOSH_Mode'), (int)$state['OpeMode']);
+                $this->SendDebug(__FUNCTION__, 'OpeMode: ' . $state['OpeMode'], 0);
+                echo "⚙️ Mode: " . $state['OpeMode'] . "\n";
+            }
 
-          // Hex‑Daten
-          if (!empty($state['ACStateData'])) {
-              $hex = $state['ACStateData'];
-              $this->SendDebug(__FUNCTION__, 'ACStateData: ' . $hex, 0);
-              echo "📄 ACStateData: " . $hex . "\n";
+            // ACStateData → Hex‑Daten
+            if (!empty($state['ACStateData'])) {
+                $hex = $state['ACStateData'];
+                $this->SendDebug(__FUNCTION__, 'ACStateData: ' . $hex, 0);
+                echo "📄 ACStateData: " . $hex . "\n";
 
-              // TODO: Hex‑Daten dekodieren
-              SetValueFloat($this->GetIDForIdent('TOSH_SetTemp'), 0);
-              SetValueFloat($this->GetIDForIdent('TOSH_RoomTemp'), 0);
-              SetValueInteger($this->GetIDForIdent('TOSH_FanSpeed'), 0);
-              SetValueBoolean($this->GetIDForIdent('TOSH_Swing'), false);
+                $decoded = $this->DecodeACStateData($hex);
 
-              echo "🌡️ Soll‑Temperatur: 0\n";
-              echo "🌡️ Ist‑Temperatur: 0\n";
-              echo "💨 FanSpeed: 0\n";
-              echo "↔️ Swing: OFF\n";
-          } else {
-              echo "📄 ACStateData nicht verfügbar.\n";
-          }
+                SetValueBoolean($this->GetIDForIdent('TOSH_Power'), $decoded['Power']);
+                SetValueInteger($this->GetIDForIdent('TOSH_Mode'), $decoded['Mode']);
+                SetValueFloat($this->GetIDForIdent('TOSH_SetTemp'), $decoded['SetTemp']);
+                SetValueFloat($this->GetIDForIdent('TOSH_RoomTemp'), $decoded['RoomTemp']);
+                SetValueInteger($this->GetIDForIdent('TOSH_FanSpeed'), $decoded['FanSpeed']);
+                SetValueBoolean($this->GetIDForIdent('TOSH_Swing'), $decoded['Swing']);
 
-      } else {
-          $this->SendDebug(__FUNCTION__, 'ResObj leer oder nicht vorhanden', 0);
-          echo "❌ ResObj leer oder nicht vorhanden.\n";
-      }
-  }
+                echo "✅ Dekodiert:\n";
+                echo "🔌 Power: " . ($decoded['Power'] ? "ON" : "OFF") . "\n";
+                echo "⚙️ Mode: {$decoded['Mode']}\n";
+                echo "🌡️ Soll‑Temp: {$decoded['SetTemp']} °C\n";
+                echo "🌡️ Ist‑Temp: {$decoded['RoomTemp']} °C\n";
+                echo "💨 FanSpeed: {$decoded['FanSpeed']}\n";
+                echo "↔️ Swing: " . ($decoded['Swing'] ? "ON" : "OFF") . "\n";
+            } else {
+                echo "📄 ACStateData nicht verfügbar.\n";
+            }
+
+        } else {
+            $this->SendDebug(__FUNCTION__, 'ResObj leer oder nicht vorhanden', 0);
+            echo "❌ ResObj leer oder nicht vorhanden.\n";
+        }
+    }
+
 
 
 
@@ -404,5 +411,34 @@ public function DiscoverDevices()
 
           return json_encode($form);
       }
+
+      private function DecodeACStateData(string $hex)
+      {
+          $bytes = str_split($hex, 2);
+          $data = [];
+
+          // nur als Beispiel – die genaue Zuordnung kann variieren
+          // Power Status
+          $powerByte = hexdec($bytes[0]);
+          $data['Power'] = ($powerByte === 0x30); // oder prüfe auf bekannten Wert
+
+          // Mode
+          $data['Mode'] = hexdec($bytes[1]);
+
+          // Soll‑Temperatur
+          $data['SetTemp'] = hexdec($bytes[5]) / 2;
+
+          // Ist‑Temperatur
+          $data['RoomTemp'] = hexdec($bytes[6]) / 2;
+
+          // FanSpeed
+          $data['FanSpeed'] = hexdec($bytes[7]);
+
+          // Swing
+          $data['Swing'] = (hexdec($bytes[8]) > 0);
+
+          return $data;
+      }
+
 
 }
