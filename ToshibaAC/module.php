@@ -10,29 +10,6 @@ class ToshibaAC extends IPSModule
       $this->RegisterPropertyString('Password', '');
       $this->RegisterPropertyString('DeviceID', '');
 
-      // Profile anlegen
-      if (!IPS_VariableProfileExists('TOSH.Mode')) {
-          IPS_CreateVariableProfile('TOSH.Mode', 1);
-          IPS_SetVariableProfileIcon('TOSH.Mode', 'Temperature');
-          IPS_SetVariableProfileAssociation('TOSH.Mode', 0, 'Auto', '', -1);
-          IPS_SetVariableProfileAssociation('TOSH.Mode', 1, 'Cool', '', -1);
-          IPS_SetVariableProfileAssociation('TOSH.Mode', 2, 'Dry', '', -1);
-          IPS_SetVariableProfileAssociation('TOSH.Mode', 3, 'Heat', '', -1);
-          IPS_SetVariableProfileAssociation('TOSH.Mode', 4, 'Fan', '', -1);
-      }
-
-      if (!IPS_VariableProfileExists('TOSH.FanSpeed')) {
-          IPS_CreateVariableProfile('TOSH.FanSpeed', 1);
-          IPS_SetVariableProfileIcon('TOSH.FanSpeed', 'WindSpeed');
-          IPS_SetVariableProfileAssociation('TOSH.FanSpeed', 0, 'Auto', '', -1);
-          IPS_SetVariableProfileAssociation('TOSH.FanSpeed', 1, 'Low', '', -1);
-          IPS_SetVariableProfileAssociation('TOSH.FanSpeed', 2, 'Med', '', -1);
-          IPS_SetVariableProfileAssociation('TOSH.FanSpeed', 3, 'High', '', -1);
-          IPS_SetVariableProfileAssociation('TOSH.FanSpeed', 4, 'Powerful', '', -1);
-          IPS_SetVariableProfileAssociation('TOSH.FanSpeed', 5, 'Quiet', '', -1);
-      }
-
-      // Standard-Variablen
       $this->RegisterVariableBoolean('TOSH_Power', 'Power', '~Switch', 10);
       $this->EnableAction('TOSH_Power');
 
@@ -49,30 +26,24 @@ class ToshibaAC extends IPSModule
 
       $this->RegisterVariableBoolean('TOSH_Swing', 'Swing', '~Switch', 60);
       $this->EnableAction('TOSH_Swing');
-
   }
 
   public function ApplyChanges()
   {
       parent::ApplyChanges();
-
-      // hier könnte man z.B. prüfen, ob alles korrekt initialisiert wurde oder zyklische Ereignisse setzen
-      $this->SendDebug(__FUNCTION__, 'ApplyChanges() aufgerufen', 0);
   }
-
 
   public function RequestAction($Ident, $Value)
   {
       switch ($Ident) {
           case 'DiscoverDevices':
               $this->DiscoverDevices();
-              return;
+              return true;
 
           default:
-              // Standard‑Variablen bedienen
               SetValue($this->GetIDForIdent($Ident), $Value);
               $this->SendCommand();
-              return;
+              return true;
       }
   }
 
@@ -334,96 +305,91 @@ public function GetSettings()
 }
 
 public function DiscoverDevices()
-{
-    $username = $this->ReadPropertyString('Username');
-    $password = $this->ReadPropertyString('Password');
+  {
+      $username = $this->ReadPropertyString('Username');
+      $password = $this->ReadPropertyString('Password');
 
-    if ($username == '' || $password == '') {
-        echo "❌ Benutzername oder Passwort fehlt.";
-        return;
-    }
+      if ($username === '' || $password === '') {
+          echo "❌ Benutzername oder Passwort fehlt.";
+          return;
+      }
 
-    $accessToken = $this->Login($username, $password);
-    if (!$accessToken) {
-        echo "❌ Login fehlgeschlagen.";
-        return;
-    }
+      $accessToken = $this->Login($username, $password);
+      if (!$accessToken) {
+          echo "❌ Login fehlgeschlagen.";
+          return;
+      }
 
-    $consumerId = $this->GetBuffer('ConsumerId');
-    if (!$consumerId) {
-        echo "❌ ConsumerId nicht gefunden.";
-        return;
-    }
+      $consumerId = $this->GetBuffer('ConsumerId');
+      if (!$consumerId) {
+          echo "❌ ConsumerId nicht gefunden.";
+          return;
+      }
 
-    $url = 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerACMapping?consumerId=' . urlencode($consumerId);
+      $url = 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerACMapping?consumerId=' . urlencode($consumerId);
 
-    $result = $this->QueryAPI($url, null, $accessToken);
+      $result = $this->QueryAPI($url, null, $accessToken);
 
-    if (!$result || empty($result['ResObj'])) {
-        echo "❌ Keine Geräte gefunden.";
-        return;
-    }
+      if (!$result || empty($result['ResObj'])) {
+          echo "❌ Keine Geräte gefunden.";
+          return;
+      }
 
-    $devices = [];
-    foreach ($result['ResObj'] as $entry) {
-        if (!empty($entry['ACList'])) {
-            foreach ($entry['ACList'] as $ac) {
-                $devices[] = [
-                    'name' => $ac['Name'] ?? 'Unbekannt',
-                    'id'   => $ac['Id'] ?? 'unbekannt'
-                ];
-            }
-        }
-    }
+      $devices = [];
+      foreach ($result['ResObj'] as $entry) {
+          if (!empty($entry['ACList'])) {
+              foreach ($entry['ACList'] as $ac) {
+                  $devices[] = [
+                      'name' => $ac['Name'] ?? 'Unbekannt',
+                      'id'   => $ac['Id'] ?? 'unbekannt'
+                  ];
+              }
+          }
+      }
 
-    if (empty($devices)) {
-        echo "❌ Keine Geräte gefunden.";
-        return;
-    }
+      if (empty($devices)) {
+          echo "❌ Keine Geräte gefunden.";
+          return;
+      }
 
-    // Anzeige im Output
-    echo "✅ Gefundene Geräte:\n";
-    foreach ($devices as $device) {
-        echo "📋 Name: {$device['name']} | ID: {$device['id']}\n";
-    }
+      echo "✅ Gefundene Geräte:\n";
+      foreach ($devices as $device) {
+          echo "📋 Name: {$device['name']} | ID: {$device['id']}\n";
+      }
 
-    // Buffer speichern
-    $this->SetBuffer('DiscoveredDevices', json_encode($devices));
+      $this->SetBuffer('DiscoveredDevices', json_encode($devices));
 
-    // WICHTIG: return damit IPS sauber beendet
-    return true;
-}
+      return true;
+  }
 
 
+  public function GetConfigurationForm()
+      {
+          $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true);
 
-public function GetConfigurationForm()
-{
-    $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true);
+          $devices = json_decode($this->GetBuffer('DiscoveredDevices'), true) ?: [];
 
-    $devices = json_decode($this->GetBuffer('DiscoveredDevices'), true) ?: [];
+          $options = [
+              [
+                  'caption' => 'Bitte Gerät auswählen …',
+                  'value'   => ''
+              ]
+          ];
 
-    $options = [
-        [
-            'caption' => 'Bitte Gerät auswählen …',
-            'value'   => ''
-        ]
-    ];
+          foreach ($devices as $device) {
+              $options[] = [
+                  'caption' => "{$device['name']} ({$device['id']})",
+                  'value'   => $device['id']
+              ];
+          }
 
-    foreach ($devices as $device) {
-        $options[] = [
-            'caption' => "{$device['name']} ({$device['id']})",
-            'value'   => $device['id']
-        ];
-    }
+          foreach ($form['elements'] as &$element) {
+              if ($element['name'] === 'DeviceID') {
+                  $element['options'] = $options;
+              }
+          }
 
-    foreach ($form['elements'] as &$element) {
-        if ($element['name'] == 'DeviceID') {
-            $element['options'] = $options;
-        }
-    }
-
-    return json_encode($form);
-}
-
+          return json_encode($form);
+      }
 
 }
