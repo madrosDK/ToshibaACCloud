@@ -413,32 +413,32 @@ public function DiscoverDevices()
       }
 
       private function DecodeACStateData(string $hex)
-      {
-          $bytes = str_split($hex, 2);
-          $data = [];
+    {
+        $bytes = str_split($hex, 2);
+        $data = [];
 
-          // nur als Beispiel – die genaue Zuordnung kann variieren
-          // Power Status
-          $powerByte = hexdec($bytes[0]);
-          $data['Power'] = ($powerByte === 0x30); // oder prüfe auf bekannten Wert
+        // Power
+        $powerByte = hexdec($bytes[0]);
+        $data['Power'] = ($powerByte === 0x30); // Vermutung: 0x30 = ON
 
-          // Mode
-          $data['Mode'] = hexdec($bytes[1]);
+        // Mode (noch nicht sicher — bleibt wie bisher)
+        $data['Mode'] = hexdec($bytes[1]);
 
-          // Soll‑Temperatur
-          $data['SetTemp'] = hexdec($bytes[5]) / 2;
+        // Soll‑Temperatur → Byte[9]
+        $data['SetTemp'] = hexdec($bytes[9]);
 
-          // Ist‑Temperatur
-          $data['RoomTemp'] = hexdec($bytes[6]) / 2;
+        // Ist‑Temperatur → Byte[8]
+        $data['RoomTemp'] = hexdec($bytes[8]);
 
-          // FanSpeed
-          $data['FanSpeed'] = hexdec($bytes[7]);
+        // FanSpeed → hier vorerst bei Byte[7]
+        $data['FanSpeed'] = hexdec($bytes[7]);
 
-          // Swing
-          $data['Swing'] = (hexdec($bytes[8]) > 0);
+        // Swing → Beispiel: Byte[10]
+        $data['Swing'] = (hexdec($bytes[10]) > 0);
 
-          return $data;
-      }
+        return $data;
+    }
+
 
 
 }
