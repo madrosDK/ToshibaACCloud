@@ -58,7 +58,7 @@ class ToshibaAC extends IPSModule
 
     private function SendCommand()
     {
-        if (!$this->EnsureLogin()) {
+        if (!$this->EnsureLoginAndACId()) {
             $this->SendDebug(__FUNCTION__, 'Login fehlgeschlagen', 0);
             return;
         }
@@ -213,7 +213,7 @@ class ToshibaAC extends IPSModule
     }
     public function GetStatus()
   {
-      if (!$this->EnsureLogin()) {
+      if (!$this->EnsureLoginAndACId()) {
           $this->SendDebug(__FUNCTION__, 'Login fehlgeschlagen', 0);
           echo "❌ Login fehlgeschlagen.\n";
           return;
