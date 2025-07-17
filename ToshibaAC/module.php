@@ -411,22 +411,11 @@ public function DiscoverDevices()
           $data = [];
 
           $powerByte = hexdec($bytes[0]);
-          $data['Power'] = ($powerByte === 0x30);
+          $data['Power'] = ($powerByte === 0x30);// 0x30=ON, 0x31=OFF
 
-          $data['RoomTemp'] = hexdec($bytes[8]);
+          $data['RoomTemp'] = hexdec($bytes[8]);  // Byte 9 → Isttemperatur
 
-          // Solltemperatur Decode mit Anpassung:
-          // Byte 9 ist nicht direkt °C, sondern Code.
-          // Für Werte < 30 → 22-23 °C in App ist Byte9=24 (dez)
-          // Für Wert 23 °C im Beispiel 3 ist Byte9=127 (dez)
-          // Vorschlag: Wenn Byte9 > 30, dann 23 (konstant), sonst  Byte9 - 2?
-
-          $byte9 = hexdec($bytes[9]);
-          if ($byte9 > 30) {
-              $data['SetTemp'] = 23; // fix Wert für diesen Code
-          } else {
-              $data['SetTemp'] = $byte9 - 2; // Offset anpassen je nach Beispiel
-          }
+          $data['SetTemp'] = hexdec($bytes[2]);     // Byte 3 → Solltemperatur
 
           $data['Mode'] = hexdec($bytes[1]);
           $data['FanSpeed'] = hexdec($bytes[7]);
