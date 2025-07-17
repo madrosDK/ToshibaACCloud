@@ -9,9 +9,20 @@
             "type": "PasswordTextBox",
             "name": "Password",
             "caption": "Passwort"
+        },
+        {
+            "type": "Select",
+            "name": "DeviceID",
+            "caption": "Gerät auswählen",
+            "options": []
         }
     ],
     "actions": [
+        {
+            "type": "Button",
+            "caption": "Geräte abfragen",
+            "onClick": "TOSH_DiscoverDevices($id);"
+        },
         {
             "type": "Button",
             "caption": "Status jetzt abrufen",

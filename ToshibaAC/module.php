@@ -50,16 +50,6 @@ class ToshibaAC extends IPSModule
       $this->RegisterVariableBoolean('TOSH_Swing', 'Swing', '~Switch', 60);
       $this->EnableAction('TOSH_Swing');
 
-      // neue Variablen für aktuelle API
-      $this->RegisterVariableString('TOSH_Name', 'Name', '', 70);
-      $this->RegisterVariableString('TOSH_Model', 'Modell', '', 80);
-      $this->RegisterVariableString('TOSH_DSTStatus', 'DST Status', '', 90);
-      $this->RegisterVariableString('TOSH_SchedulerStatus', 'Scheduler Status', '', 100);
-      $this->RegisterVariableString('TOSH_ProgramState', 'Program State (Hex)', '', 110);
-      $this->RegisterVariableString('TOSH_OpeMode', 'Operating Mode', '', 120);
-      $this->RegisterVariableString('TOSH_DSTStatusDetail', 'DST Detail', '', 130);
-      $this->RegisterVariableInteger('TOSH_DSTTime', 'DST Time', '', 140);
-      $this->RegisterVariableString('TOSH_ProgramSetting', 'Program Setting (JSON)', '', 150);
   }
 
   public function ApplyChanges()
@@ -245,43 +235,69 @@ class ToshibaAC extends IPSModule
         if (!empty($result['ResObj'])) {
             $state = $result['ResObj'];
 
-            // sichere Abfragen
-            if (isset($state['ACName'])) {
-                SetValueString($this->GetIDForIdent('TOSH_Name'), $state['ACName']);
-            }
-            if (isset($state['ACModel'])) {
-                SetValueString($this->GetIDForIdent('TOSH_Model'), $state['ACModel']);
-            }
+            // bekannte Keys → bekannte Variablen
+
+            // Power → aus dstStatus (ON/OFF)
             if (isset($state['dstStatus'])) {
-                SetValueString($this->GetIDForIdent('TOSH_DSTStatus'), $state['dstStatus']);
-            }
-            if (isset($state['schedulerStatus'])) {
-                SetValueString($this->GetIDForIdent('TOSH_SchedulerStatus'), $state['schedulerStatus']);
-            }
-            if (isset($state['ACStateDataForProgram'])) {
-                SetValueString($this->GetIDForIdent('TOSH_ProgramState'), $state['ACStateDataForProgram']);
-            }
-            if (isset($state['OpeMode'])) {
-                SetValueString($this->GetIDForIdent('TOSH_OpeMode'), $state['OpeMode']);
+                SetValueBoolean(
+                    $this->GetIDForIdent('TOSH_Power'),
+                    ($state['dstStatus'] === 'ON')
+                );
             }
 
-            if (!empty($state['dst']) && is_array($state['dst'])) {
-                if (isset($state['dst']['Status'])) {
-                    SetValueString($this->GetIDForIdent('TOSH_DSTStatusDetail'), $state['dst']['Status']);
-                }
-                if (isset($state['dst']['Time'])) {
-                    SetValueInteger($this->GetIDForIdent('TOSH_DSTTime'), (int)$state['dst']['Time']);
-                }
+            // Mode → aus OpeMode (könnte NULL sein)
+            if (!empty($state['OpeMode'])) {
+                SetValueInteger(
+                    $this->GetIDForIdent('TOSH_Mode'),
+                    (int) $state['OpeMode']
+                );
             }
 
-            if (!empty($state['programSetting']) && is_array($state['programSetting'])) {
+            // SetTemp / RoomTemp / FanSpeed / Swing → unbekannt (Platzhalter)
+            if (!empty($state['ACStateDataForProgram'])) {
+                $this->SendDebug(
+                    __FUNCTION__,
+                    'ACStateDataForProgram (hex, noch nicht dekodiert): ' . $state['ACStateDataForProgram'],
+                    0
+                );
+
+                // ➝ hier müsstest du das Hex dekodieren, z.B.:
+                // $decoded = $this->DecodeACStateData($state['ACStateDataForProgram']);
+
+                // bis dahin setzen wir Platzhalter:
+                SetValueFloat($this->GetIDForIdent('TOSH_SetTemp'), 0);
+                SetValueFloat($this->GetIDForIdent('TOSH_RoomTemp'), 0);
+                SetValueInteger($this->GetIDForIdent('TOSH_FanSpeed'), 0);
+                SetValueBoolean($this->GetIDForIdent('TOSH_Swing'), false);
+            }
+
+            // für Debug & Vollständigkeit
+            if (!empty($state['ACName'])) {
+                $this->SendDebug(__FUNCTION__, 'ACName: ' . $state['ACName'], 0);
+            }
+
+            if (!empty($state['ACModel'])) {
+                $this->SendDebug(__FUNCTION__, 'ACModel: ' . $state['ACModel'], 0);
+            }
+
+            if (!empty($state['SchedulerStatus'])) {
+                $this->SendDebug(__FUNCTION__, 'SchedulerStatus: ' . $state['SchedulerStatus'], 0);
+            }
+
+            if (!empty($state['programSetting'])) {
                 $json = json_encode($state['programSetting'], JSON_PRETTY_PRINT);
-                SetValueString($this->GetIDForIdent('TOSH_ProgramSetting'), $json);
+                $this->SendDebug(__FUNCTION__, 'ProgramSetting: ' . $json, 0);
             }
+
+            if (!empty($state['dst'])) {
+                $this->SendDebug(__FUNCTION__, 'DST: ' . print_r($state['dst'], true), 0);
+            }
+
         } else {
             $this->SendDebug(__FUNCTION__, 'ResObj leer oder nicht vorhanden', 0);
         }
     }
+
 
 public function GetSettings()
 {
@@ -305,6 +321,88 @@ public function GetSettings()
     $this->SendDebug(__FUNCTION__, print_r($result, true), 0);
 
     // Einstellungen werden hier nur geloggt — du kannst sie nach Wunsch weiter verarbeiten
+}
+
+public function DiscoverDevices()
+{
+    $username = $this->ReadPropertyString('Username');
+    $password = $this->ReadPropertyString('Password');
+
+    if ($username == '' || $password == '') {
+        echo "Benutzername oder Passwort fehlt.";
+        return;
+    }
+
+    $accessToken = $this->Login($username, $password);
+    if (!$accessToken) {
+        echo "Login fehlgeschlagen.";
+        return;
+    }
+
+    $consumerId = $this->GetBuffer('ConsumerId');
+    if (!$consumerId) {
+        echo "ConsumerId nicht gefunden.";
+        return;
+    }
+
+    $url = 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerACMapping?consumerId=' . urlencode($consumerId);
+
+    $result = $this->QueryAPI($url, null, $accessToken);
+
+    if (!$result || empty($result['ResObj'])) {
+        echo "Keine Geräte gefunden.";
+        return;
+    }
+
+    $devices = [];
+    foreach ($result['ResObj'] as $entry) {
+        if (!empty($entry['ACList'])) {
+            foreach ($entry['ACList'] as $ac) {
+                $devices[] = [
+                    'name' => $ac['ACName'] ?? 'Unbekannt',
+                    'id'   => $ac['Id'] ?? 'unbekannt'
+                ];
+            }
+        }
+    }
+
+    if (empty($devices)) {
+        echo "Keine Geräte gefunden.";
+        return;
+    }
+
+    // Anzeige im Output
+    echo "Gefundene Geräte:\n";
+    foreach ($devices as $device) {
+        echo "📋 Name: {$device['name']} | ID: {$device['id']}\n";
+    }
+
+    // Optional: Buffer speichern, um bei SaveFormValues() zu verwenden
+    $this->SetBuffer('DiscoveredDevices', json_encode($devices));
+}
+
+public function GetConfigurationForm()
+{
+    $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true);
+
+    // geladene Geräte aus Buffer holen
+    $devices = json_decode($this->GetBuffer('DiscoveredDevices'), true) ?: [];
+
+    $options = [];
+    foreach ($devices as $device) {
+        $options[] = [
+            'caption' => "{$device['name']} ({$device['id']})",
+            'value'   => $device['id']
+        ];
+    }
+
+    foreach ($form['elements'] as &$element) {
+        if ($element['name'] == 'DeviceID') {
+            $element['options'] = $options;
+        }
+    }
+
+    return json_encode($form);
 }
 
 
