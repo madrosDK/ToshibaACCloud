@@ -305,62 +305,63 @@ public function GetSettings()
 }
 
 public function DiscoverDevices()
-  {
-      $username = $this->ReadPropertyString('Username');
-      $password = $this->ReadPropertyString('Password');
+{
+    $username = $this->ReadPropertyString('Username');
+    $password = $this->ReadPropertyString('Password');
 
-      if ($username === '' || $password === '') {
-          echo "❌ Benutzername oder Passwort fehlt.";
-          return;
-      }
+    if ($username === '' || $password === '') {
+        $this->SendDebug(__FUNCTION__, "❌ Benutzername oder Passwort fehlt.", 0);
+        return true;
+    }
 
-      $accessToken = $this->Login($username, $password);
-      if (!$accessToken) {
-          echo "❌ Login fehlgeschlagen.";
-          return;
-      }
+    $accessToken = $this->Login($username, $password);
+    if (!$accessToken) {
+        $this->SendDebug(__FUNCTION__, "❌ Login fehlgeschlagen.", 0);
+        return true;
+    }
 
-      $consumerId = $this->GetBuffer('ConsumerId');
-      if (!$consumerId) {
-          echo "❌ ConsumerId nicht gefunden.";
-          return;
-      }
+    $consumerId = $this->GetBuffer('ConsumerId');
+    if (!$consumerId) {
+        $this->SendDebug(__FUNCTION__, "❌ ConsumerId nicht gefunden.", 0);
+        return true;
+    }
 
-      $url = 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerACMapping?consumerId=' . urlencode($consumerId);
+    $url = 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerACMapping?consumerId=' . urlencode($consumerId);
 
-      $result = $this->QueryAPI($url, null, $accessToken);
+    $result = $this->QueryAPI($url, null, $accessToken);
 
-      if (!$result || empty($result['ResObj'])) {
-          echo "❌ Keine Geräte gefunden.";
-          return;
-      }
+    if (!$result || empty($result['ResObj'])) {
+        $this->SendDebug(__FUNCTION__, "❌ Keine Geräte gefunden.", 0);
+        return true;
+    }
 
-      $devices = [];
-      foreach ($result['ResObj'] as $entry) {
-          if (!empty($entry['ACList'])) {
-              foreach ($entry['ACList'] as $ac) {
-                  $devices[] = [
-                      'name' => $ac['Name'] ?? 'Unbekannt',
-                      'id'   => $ac['Id'] ?? 'unbekannt'
-                  ];
-              }
-          }
-      }
+    $devices = [];
+    foreach ($result['ResObj'] as $entry) {
+        if (!empty($entry['ACList'])) {
+            foreach ($entry['ACList'] as $ac) {
+                $devices[] = [
+                    'name' => $ac['Name'] ?? 'Unbekannt',
+                    'id'   => $ac['Id'] ?? 'unbekannt'
+                ];
+            }
+        }
+    }
 
-      if (empty($devices)) {
-          echo "❌ Keine Geräte gefunden.";
-          return;
-      }
+    if (empty($devices)) {
+        $this->SendDebug(__FUNCTION__, "❌ Keine Geräte gefunden.", 0);
+        return true;
+    }
 
-      echo "✅ Gefundene Geräte:\n";
-      foreach ($devices as $device) {
-          echo "📋 Name: {$device['name']} | ID: {$device['id']}\n";
-      }
+    $this->SendDebug(__FUNCTION__, "✅ Gefundene Geräte:", 0);
+    foreach ($devices as $device) {
+        $this->SendDebug(__FUNCTION__, "📋 Name: {$device['name']} | ID: {$device['id']}", 0);
+    }
 
-      $this->SetBuffer('DiscoveredDevices', json_encode($devices));
+    $this->SetBuffer('DiscoveredDevices', json_encode($devices));
 
-      return true;
-  }
+    return true;
+}
+
 
 
   public function GetConfigurationForm()
