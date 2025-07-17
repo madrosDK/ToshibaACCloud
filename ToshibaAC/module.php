@@ -117,7 +117,8 @@ class ToshibaAC extends IPSModule
 
 
         // Verwende hier deine API-Klasse oder direkten cURL-Call
-        $loginUrl = 'https://mobileapi.toshibahomeaccontrols.com/v1/user/auth/login';
+        //$loginUrl = 'https://mobileapi.toshibahomeaccontrols.com/v1/user/auth/login';
+        $loginUrl = 'https://mobileapi.toshibahomeaccontrols.com/api/Consumer/Login';
         $accessToken = $this->Login($username, $password);
 
         if (!$accessToken) {
@@ -153,7 +154,8 @@ class ToshibaAC extends IPSModule
         $accessToken = $data['access_token'];
 
         // Geräte abrufen
-        $deviceUrl = 'https://mobileapi.toshibahomeaccontrols.com/v1/user/device';
+        $deviceUrl = 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetRegisteredACByUniqueId';
+        //$deviceUrl = 'https://mobileapi.toshibahomeaccontrols.com/v1/user/device';
 
         $ch = curl_init($deviceUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
