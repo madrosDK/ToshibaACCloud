@@ -205,4 +205,61 @@ class ToshibaAC extends IPSModule
             return false;
         }
     }
+    public function GetStatus()
+{
+    if (!$this->EnsureLoginAndACId()) {
+        $this->SendDebug(__FUNCTION__, 'Login oder AC‑ID fehlgeschlagen', 0);
+        return;
+    }
+
+    $accessToken = $this->GetBuffer('AccessToken');
+    $acId        = $this->GetBuffer('ACId');
+
+    $url = 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetCurrentACState?ACId=' . urlencode($acId);
+
+    $result = $this->QueryAPI($url, null, $accessToken);
+
+    if (!$result) {
+        $this->SendDebug(__FUNCTION__, 'Keine Daten erhalten', 0);
+        return;
+    }
+
+    $this->SendDebug(__FUNCTION__, print_r($result, true), 0);
+
+    if (!empty($result['ResObj'])) {
+        $state = $result['ResObj'];
+
+        SetValue($this->GetIDForIdent('TOSH_Power'), $state['Power'] == 1);
+        SetValue($this->GetIDForIdent('TOSH_Mode'), (int) $state['OperationMode']);
+        SetValue($this->GetIDForIdent('TOSH_SetTemp'), (float) $state['TargetTemperature']);
+        SetValue($this->GetIDForIdent('TOSH_RoomTemp'), (float) $state['CurrentTemperature']);
+        SetValue($this->GetIDForIdent('TOSH_FanSpeed'), (int) $state['FanSpeed']);
+        SetValue($this->GetIDForIdent('TOSH_Swing'), $state['AirSwingLR'] === 'auto');
+    }
+}
+public function GetSettings()
+{
+    if (!$this->EnsureLoginAndACId()) {
+        $this->SendDebug(__FUNCTION__, 'Login oder AC‑ID fehlgeschlagen', 0);
+        return;
+    }
+
+    $accessToken = $this->GetBuffer('AccessToken');
+    $consumerId  = $this->GetBuffer('ConsumerId');
+
+    $url = 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerProgramSettings?consumerId=' . urlencode($consumerId);
+
+    $result = $this->QueryAPI($url, null, $accessToken);
+
+    if (!$result) {
+        $this->SendDebug(__FUNCTION__, 'Keine Daten erhalten', 0);
+        return;
+    }
+
+    $this->SendDebug(__FUNCTION__, print_r($result, true), 0);
+
+    // Einstellungen werden hier nur geloggt — du kannst sie nach Wunsch weiter verarbeiten
+}
+
+
 }

@@ -1,28 +1,26 @@
 {
-  "elements": [
-    {
-      "type": "ValidationTextBox",
-      "name": "Username",
-      "caption": "Benutzername"
-    },
-    {
-      "type": "PasswordTextBox",
-      "name": "Password",
-      "caption": "Passwort"
-    },
-    {
-      "type": "Label",
-      "label": "DeviceID wird automatisch abgerufen oder manuell eingetragen."
-    },
-    {
-      "type": "ValidationTextBox",
-      "name": "DeviceID",
-      "caption": "Device ID"
-    },
-    {
-      "type": "Button",
-      "caption": "Testverbindung",
-      "onClick": "TestConnection"
-    }
-  ]
+    "elements": [
+        {
+            "type": "ValidationTextBox",
+            "name": "Username",
+            "caption": "Benutzername"
+        },
+        {
+            "type": "PasswordTextBox",
+            "name": "Password",
+            "caption": "Passwort"
+        }
+    ],
+    "actions": [
+        {
+            "type": "Button",
+            "caption": "Status jetzt abrufen",
+            "onClick": "TOSH_GetStatus($id);"
+        },
+        {
+            "type": "Button",
+            "caption": "Testverbindung",
+            "onClick": "TOSH_TestConnection($id);"
+        }
+    ]
 }
