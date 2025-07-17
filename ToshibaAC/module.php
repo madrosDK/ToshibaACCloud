@@ -124,16 +124,15 @@ class ToshibaAC extends IPSModule
     private function Login($username, $password)
     {
         $url = 'https://mobileapi.toshibahomeaccontrols.com/api/Consumer/Login';
-
-        $fields = json_encode([
+        $payload = json_encode([
             'Username' => $username,
             'Password' => $password
         ]);
 
-        $result = $this->QueryAPI($url, $fields);
+        $result = $this->QueryAPI($url, $payload);
 
-        if (!$result || empty($result['ResObj']['access_token'])) {
-            $this->SendDebug(__FUNCTION__, 'Login fehlgeschlagen', 0);
+        if (!$result || empty($result['ResObj']['access_token']) || empty($result['ResObj']['consumerId'])) {
+            $this->SendDebug(__FUNCTION__, 'Login fehlgeschlagen oder unvollständig', 0);
             return false;
         }
 
@@ -143,26 +142,51 @@ class ToshibaAC extends IPSModule
         $this->SetBuffer('AccessToken', $accessToken);
         $this->SetBuffer('ConsumerId', $consumerId);
 
-        $this->SendDebug(__FUNCTION__, 'Login erfolgreich', 0);
+        $this->SendDebug(__FUNCTION__, "Login erfolgreich. AccessToken & ConsumerId gesetzt.", 0);
 
         return $accessToken;
     }
 
     private function GetACId($accessToken, $consumerId)
     {
+        // Prüfe: hat der Benutzer bereits eine DeviceID in der Instanz gespeichert?
+        $deviceIdProp = $this->ReadPropertyString('DeviceID');
+        if (!empty($deviceIdProp)) {
+            $this->SendDebug(__FUNCTION__, "Verwende gespeicherte DeviceID aus Property: $deviceIdProp", 0);
+            return $deviceIdProp;
+        }
+
+        // Falls nicht: hole Liste aller Geräte & nimm den ersten
         $url = 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerACMapping?consumerId=' . urlencode($consumerId);
 
         $result = $this->QueryAPI($url, null, $accessToken);
 
-        if (!$result || empty($result['ResObj'][0]['ACList'][0]['Id'])) {
-            $this->SendDebug(__FUNCTION__, 'Keine AC‑ID gefunden', 0);
+        if (!$result || empty($result['ResObj'])) {
+            $this->SendDebug(__FUNCTION__, 'Keine Geräte gefunden', 0);
             return false;
         }
 
-        $acId = $result['ResObj'][0]['ACList'][0]['Id'];
-        $this->SendDebug(__FUNCTION__, "Gefundene AC‑ID: $acId", 0);
-        return $acId;
+        foreach ($result['ResObj'] as $entry) {
+            if (!empty($entry['ACList'])) {
+                foreach ($entry['ACList'] as $ac) {
+                    if (!empty($ac['Id'])) {
+                        $acId = $ac['Id'];
+                        $this->SendDebug(__FUNCTION__, "Erste gefundene AC‑ID: $acId", 0);
+
+                        // Optional: auch in Property schreiben
+                        // IPS_SetProperty($this->InstanceID, 'DeviceID', $acId);
+                        // IPS_ApplyChanges($this->InstanceID);
+
+                        return $acId;
+                    }
+                }
+            }
+        }
+
+        $this->SendDebug(__FUNCTION__, 'Keine AC‑ID gefunden', 0);
+        return false;
     }
+
 
     private function QueryAPI($url, $postData = null, $token = null)
     {
@@ -310,20 +334,17 @@ public function DiscoverDevices()
     $password = $this->ReadPropertyString('Password');
 
     if ($username === '' || $password === '') {
-        $this->SendDebug(__FUNCTION__, "❌ Benutzername oder Passwort fehlt.", 0);
-        return true;
+        return "❌ Benutzername oder Passwort fehlt.";
     }
 
     $accessToken = $this->Login($username, $password);
     if (!$accessToken) {
-        $this->SendDebug(__FUNCTION__, "❌ Login fehlgeschlagen.", 0);
-        return true;
+        return "❌ Login fehlgeschlagen.";
     }
 
     $consumerId = $this->GetBuffer('ConsumerId');
     if (!$consumerId) {
-        $this->SendDebug(__FUNCTION__, "❌ ConsumerId nicht gefunden.", 0);
-        return true;
+        return "❌ ConsumerId nicht gefunden.";
     }
 
     $url = 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerACMapping?consumerId=' . urlencode($consumerId);
@@ -331,8 +352,7 @@ public function DiscoverDevices()
     $result = $this->QueryAPI($url, null, $accessToken);
 
     if (!$result || empty($result['ResObj'])) {
-        $this->SendDebug(__FUNCTION__, "❌ Keine Geräte gefunden.", 0);
-        return true;
+        return "❌ Keine Geräte gefunden.";
     }
 
     $devices = [];
@@ -348,23 +368,18 @@ public function DiscoverDevices()
     }
 
     if (empty($devices)) {
-        $this->SendDebug(__FUNCTION__, "❌ Keine Geräte gefunden.", 0);
-        return true;
+        return "❌ Keine Geräte gefunden.";
     }
 
-    // Anzeige im Output
-    echo "✅ Gefundene Geräte:\n";
-    foreach ($devices as $device) {
-        echo "📋 Name: {$device['name']} | ID: {$device['id']}\n";
-    }
-
-    // Buffer speichern
     $this->SetBuffer('DiscoveredDevices', json_encode($devices));
 
-    // WICHTIG: return damit IPS sauber beendet
-    return true;
-}
+    $output = "✅ Gefundene Geräte:<br>";
+    foreach ($devices as $device) {
+        $output .= "📋 Name: {$device['name']} | ID: {$device['id']}<br>";
+    }
 
+    return $output;
+}
 
 
   public function GetConfigurationForm()
