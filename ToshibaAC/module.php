@@ -238,68 +238,40 @@ class ToshibaAC extends IPSModule
         if (!empty($result['ResObj'])) {
             $state = $result['ResObj'];
 
-            // bekannte Keys → bekannte Variablen
-
-            // Power → aus dstStatus (ON/OFF)
+            // Power
             if (isset($state['dstStatus'])) {
-                SetValueBoolean(
-                    $this->GetIDForIdent('TOSH_Power'),
-                    ($state['dstStatus'] === 'ON')
-                );
+                $power = ($state['dstStatus'] === 'ON');
+                SetValueBoolean($this->GetIDForIdent('TOSH_Power'), $power);
+                $this->SendDebug(__FUNCTION__, 'Power: ' . ($power ? 'ON' : 'OFF'), 0);
             }
 
-            // Mode → aus OpeMode (könnte NULL sein)
+            // Mode
             if (!empty($state['OpeMode'])) {
-                SetValueInteger(
-                    $this->GetIDForIdent('TOSH_Mode'),
-                    (int) $state['OpeMode']
-                );
+                SetValueInteger($this->GetIDForIdent('TOSH_Mode'), (int)$state['OpeMode']);
+                $this->SendDebug(__FUNCTION__, 'OpeMode: ' . $state['OpeMode'], 0);
             }
 
-            // SetTemp / RoomTemp / FanSpeed / Swing → unbekannt (Platzhalter)
+            // Hex‑Daten
             if (!empty($state['ACStateDataForProgram'])) {
-                $this->SendDebug(
-                    __FUNCTION__,
-                    'ACStateDataForProgram (hex, noch nicht dekodiert): ' . $state['ACStateDataForProgram'],
-                    0
-                );
+                $hex = $state['ACStateDataForProgram'];
+                $this->SendDebug(__FUNCTION__, 'ACStateDataForProgram: ' . $hex, 0);
 
-                // ➝ hier müsstest du das Hex dekodieren, z.B.:
-                // $decoded = $this->DecodeACStateData($state['ACStateDataForProgram']);
+                // TODO: Hex‑Daten richtig dekodieren
+                // aktuell setzen wir Platzhalter
 
-                // bis dahin setzen wir Platzhalter:
                 SetValueFloat($this->GetIDForIdent('TOSH_SetTemp'), 0);
                 SetValueFloat($this->GetIDForIdent('TOSH_RoomTemp'), 0);
                 SetValueInteger($this->GetIDForIdent('TOSH_FanSpeed'), 0);
                 SetValueBoolean($this->GetIDForIdent('TOSH_Swing'), false);
-            }
-
-            // für Debug & Vollständigkeit
-            if (!empty($state['ACName'])) {
-                $this->SendDebug(__FUNCTION__, 'ACName: ' . $state['ACName'], 0);
-            }
-
-            if (!empty($state['ACModel'])) {
-                $this->SendDebug(__FUNCTION__, 'ACModel: ' . $state['ACModel'], 0);
-            }
-
-            if (!empty($state['SchedulerStatus'])) {
-                $this->SendDebug(__FUNCTION__, 'SchedulerStatus: ' . $state['SchedulerStatus'], 0);
-            }
-
-            if (!empty($state['programSetting'])) {
-                $json = json_encode($state['programSetting'], JSON_PRETTY_PRINT);
-                $this->SendDebug(__FUNCTION__, 'ProgramSetting: ' . $json, 0);
-            }
-
-            if (!empty($state['dst'])) {
-                $this->SendDebug(__FUNCTION__, 'DST: ' . print_r($state['dst'], true), 0);
+            } else {
+                $this->SendDebug(__FUNCTION__, 'ACStateDataForProgram leer.', 0);
             }
 
         } else {
             $this->SendDebug(__FUNCTION__, 'ResObj leer oder nicht vorhanden', 0);
         }
     }
+
 
 
 public function GetSettings()
