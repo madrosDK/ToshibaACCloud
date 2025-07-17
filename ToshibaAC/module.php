@@ -115,100 +115,95 @@ class ToshibaAC extends IPSModule
             return;
         }
 
-
-        // Verwende hier deine API-Klasse oder direkten cURL-Call
-        //$loginUrl = 'https://mobileapi.toshibahomeaccontrols.com/v1/user/auth/login';
-        $loginUrl = 'https://mobileapi.toshibahomeaccontrols.com/api/Consumer/Login';
-        $accessToken = $this->Login($username, $password);
-
-        if (!$accessToken) {
+        $token = $this->Login($username, $password);
+        if (!$token) {
             echo "Login fehlgeschlagen.";
             return;
         }
 
-        $loginData = json_encode([
-            'username' => $username,
-            'password' => $password
-        ]);
+        $consumerId = $this->GetBuffer('ConsumerId');
+        $acId = $this->GetACId($token, $consumerId);
 
-        $ch = curl_init($loginUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $loginData);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode != 200) {
-            echo "Login fehlgeschlagen (HTTP-Code $httpCode)";
-            return;
-        }
-
-        $data = json_decode($response, true);
-        if (!isset($data['access_token'])) {
-            echo "Login fehlgeschlagen: kein Zugriffstoken erhalten.";
-            return;
-        }
-
-        $accessToken = $data['access_token'];
-
-        // Geräte abrufen
-        $deviceUrl = 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetRegisteredACByUniqueId';
-        //$deviceUrl = 'https://mobileapi.toshibahomeaccontrols.com/v1/user/device';
-
-        $ch = curl_init($deviceUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $accessToken
-        ]);
-
-        $deviceResponse = curl_exec($ch);
-        curl_close($ch);
-
-        $deviceData = json_decode($deviceResponse, true);
-
-        if (isset($deviceData[0]['deviceGuid'])) {
-            echo "Verbindung erfolgreich. DeviceID: " . $deviceData[0]['deviceGuid'];
-        } elseif (isset($deviceData['message'])) {
-            echo "Fehler: " . $deviceData['message'];
+        if ($acId) {
+            echo "Verbindung erfolgreich. AC‑ID: $acId";
         } else {
-            echo "Keine Geräte gefunden oder unbekannter Fehler.";
+            echo "Login ok, aber keine AC‑ID gefunden.";
         }
     }
+
 
     private function Login($username, $password)
     {
-        $url = 'https://mobileapi.toshibahomeaccontrols.com/api/Consumer/Login';
-        $payload = json_encode([
+        $baseUrl = "https://mobileapi.toshibahomeaccontrols.com";
+        $loginUrl = $baseUrl . "/api/Consumer/Login";
+
+        $fields = json_encode([
             'Username' => $username,
             'Password' => $password
         ]);
-        $response = $this->QueryAPI($url, $payload);
-        return $response['ResObj']['access_token'] ?? false;
-    }
 
-    private function QueryAPI($url, $postData = null, $token = null)
-    {
-        if (strpos($url, 'http') !== 0) {
-            $url = 'https://mobileapi.toshibahomeaccontrols.com' . $url;
+        $result = $this->QueryAPI($loginUrl, $fields);
+
+        if (!$result || empty($result['ResObj']['access_token'])) {
+            $this->SendDebug(__FUNCTION__, 'Login fehlgeschlagen', 0);
+            return false;
         }
 
-        $headers = ["Content-Type: application/json"];
-        if ($token) {
-            $headers[] = "Authorization: Bearer $token";
-        }
+        $accessToken = $result['ResObj']['access_token'];
+        $consumerId = $result['ResObj']['consumerId'];
 
-        $opts = [
-            'http' => [
-                'method' => 'POST',
-                'header' => implode("\r\n", $headers),
-                'content' => $postData
-            ]
-        ];
-        $context = stream_context_create($opts);
-        $result = @file_get_contents($url, false, $context);
-        return $result ? json_decode($result, true) : false;
+        // speichern für spätere API‑Aufrufe
+        $this->SetBuffer('AccessToken', $accessToken);
+        $this->SetBuffer('ConsumerId', $consumerId);
+
+        return $accessToken;
     }
+
+    private function GetACId($accessToken, $consumerId)
+{
+    $baseUrl = "https://mobileapi.toshibahomeaccontrols.com";
+    $mappingUrl = $baseUrl . "/api/AC/GetConsumerACMapping?consumerId=" . urlencode($consumerId);
+
+    $result = $this->QueryAPI($mappingUrl, null, $accessToken);
+
+    if (!$result || empty($result['ResObj'][0]['ACList'][0]['Id'])) {
+        $this->SendDebug(__FUNCTION__, 'Keine AC‑ID gefunden', 0);
+        return false;
+    }
+
+    $acId = $result['ResObj'][0]['ACList'][0]['Id'];
+    $this->SendDebug(__FUNCTION__, "Gefundene AC‑ID: $acId", 0);
+    return $acId;
+}
+
+
+
+private function QueryAPI($url, $postData = null, $token = null)
+{
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+
+    if (!empty($postData)) {
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+    }
+
+    $headers = ['Content-Type: application/json'];
+    if (!empty($token)) {
+        $headers[] = 'Authorization: Bearer ' . $token;
+    }
+
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+    $result = curl_exec($ch);
+    curl_close($ch);
+
+    if (!empty($result)) {
+        return json_decode($result, true);
+    } else {
+        $this->SendDebug(__FUNCTION__, "Fehler bei Query: $url", 0);
+        return false;
+    }
+}
 }
