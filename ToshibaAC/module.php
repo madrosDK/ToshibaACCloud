@@ -331,75 +331,87 @@ public function DiscoverDevices()
     $username = $this->ReadPropertyString('Username');
     $password = $this->ReadPropertyString('Password');
 
-    if ($username === '' || $password === '') {
-        return "❌ Benutzername oder Passwort fehlt.";
+    if ($username == '' || $password == '') {
+        echo "Benutzername oder Passwort fehlt.";
+        return;
     }
 
     $accessToken = $this->Login($username, $password);
     if (!$accessToken) {
-        return "❌ Login fehlgeschlagen.";
+        echo "Login fehlgeschlagen.";
+        return;
     }
 
     $consumerId = $this->GetBuffer('ConsumerId');
     if (!$consumerId) {
-        return "❌ ConsumerId nicht gefunden.";
+        echo "ConsumerId nicht gefunden.";
+        return;
     }
 
     $url = 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerACMapping?consumerId=' . urlencode($consumerId);
 
     $result = $this->QueryAPI($url, null, $accessToken);
 
-    if (!$result) {
-        return "❌ Keine Antwort von API.";
+    if (!$result || empty($result['ResObj'])) {
+        echo "Keine Geräte gefunden.";
+        return;
     }
 
-    if (empty($result['ResObj'])) {
-        return "❌ ResObj leer. Antwort: " . json_encode($result);
-    }
-
-    $output = "✅ Gefundene Geräte:<br>";
-
+    $devices = [];
     foreach ($result['ResObj'] as $entry) {
         if (!empty($entry['ACList'])) {
             foreach ($entry['ACList'] as $ac) {
-                $name = $ac['Name'] ?? 'Unbekannt';
-                $id   = $ac['Id'] ?? 'unbekannt';
-                $output .= "📋 Name: {$name} | ID: {$id}<br>";
+                $devices[] = [
+                    'name' => $ac['Name'] ?? 'Unbekannt',
+                    'id'   => $ac['Id'] ?? 'unbekannt'
+                ];
             }
         }
     }
 
-    return $output;
+    if (empty($devices)) {
+        echo "Keine Geräte gefunden.";
+        return;
+    }
+
+    // Anzeige im Output
+    echo "Gefundene Geräte:\n";
+    foreach ($devices as $device) {
+        echo "📋 Name: {$device['name']} | ID: {$device['id']}\n";
+    }
+
+    // Buffer speichern, damit GetConfigurationForm() sie anzeigen kann
+    $this->SetBuffer('DiscoveredDevices', json_encode($devices));
 }
 
 
-  public function GetConfigurationForm()
-      {
-          $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true);
+public function GetConfigurationForm()
+{
+    $form = json_decode(file_get_contents(__DIR__ . '/form.json'), true);
 
-          $devices = json_decode($this->GetBuffer('DiscoveredDevices'), true) ?: [];
+    $devices = json_decode($this->GetBuffer('DiscoveredDevices'), true) ?: [];
 
-          $options = [
-              [
-                  'caption' => 'Bitte Gerät auswählen …',
-                  'value'   => ''
-              ]
-          ];
+    $options = [
+        [
+            'caption' => 'Bitte Gerät auswählen …',
+            'value'   => ''
+        ]
+    ];
 
-          foreach ($devices as $device) {
-              $options[] = [
-                  'caption' => "{$device['name']} ({$device['id']})",
-                  'value'   => $device['id']
-              ];
-          }
+    foreach ($devices as $device) {
+        $options[] = [
+            'caption' => "{$device['name']} ({$device['id']})",
+            'value'   => $device['id']
+        ];
+    }
 
-          foreach ($form['elements'] as &$element) {
-              if ($element['name'] === 'DeviceID') {
-                  $element['options'] = $options;
-              }
-          }
+    foreach ($form['elements'] as &$element) {
+        if ($element['name'] == 'DeviceID') {
+            $element['options'] = $options;
+        }
+    }
 
-          return json_encode($form);
-      }
+    return json_encode($form);
+}
 
 }
