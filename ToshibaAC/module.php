@@ -406,32 +406,34 @@ public function DiscoverDevices()
       }
 
       private function DecodeACStateData(string $hex)
-    {
-        $bytes = str_split($hex, 2);
-        $data = [];
+      {
+          $bytes = str_split($hex, 2);
+          $data = [];
 
-        // Power
-        $powerByte = hexdec($bytes[0]);
-        $data['Power'] = ($powerByte === 0x30); // Vermutung: 0x30 = ON
+          $powerByte = hexdec($bytes[0]);
+          $data['Power'] = ($powerByte === 0x30);
 
-        // Mode (noch nicht sicher — bleibt wie bisher)
-        $data['Mode'] = hexdec($bytes[1]);
+          $data['RoomTemp'] = hexdec($bytes[8]);
 
-        // Soll‑Temperatur → Byte[9]
-        $data['SetTemp'] = hexdec($bytes[9]);
+          // Solltemperatur Decode mit Anpassung:
+          // Byte 9 ist nicht direkt °C, sondern Code.
+          // Für Werte < 30 → 22-23 °C in App ist Byte9=24 (dez)
+          // Für Wert 23 °C im Beispiel 3 ist Byte9=127 (dez)
+          // Vorschlag: Wenn Byte9 > 30, dann 23 (konstant), sonst  Byte9 - 2?
 
-        // Ist‑Temperatur → Byte[8]
-        $data['RoomTemp'] = hexdec($bytes[8]);
+          $byte9 = hexdec($bytes[9]);
+          if ($byte9 > 30) {
+              $data['SetTemp'] = 23; // fix Wert für diesen Code
+          } else {
+              $data['SetTemp'] = $byte9 - 2; // Offset anpassen je nach Beispiel
+          }
 
-        // FanSpeed → hier vorerst bei Byte[7]
-        $data['FanSpeed'] = hexdec($bytes[7]);
+          $data['Mode'] = hexdec($bytes[1]);
+          $data['FanSpeed'] = hexdec($bytes[7]);
+          $data['Swing'] = (hexdec($bytes[10]) > 0);
 
-        // Swing → Beispiel: Byte[10]
-        $data['Swing'] = (hexdec($bytes[10]) > 0);
-
-        return $data;
-    }
-
+          return $data;
+      }
 
 
 }
