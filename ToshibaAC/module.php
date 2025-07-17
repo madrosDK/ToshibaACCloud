@@ -114,6 +114,7 @@ class ToshibaAC extends IPSModule
             echo "Benutzername oder Passwort fehlt.";
             return;
         }
+        
 
         // Verwende hier deine API-Klasse oder direkten cURL-Call
         //$loginUrl = 'https://mobileapi.toshibahomeaccontrols.com/v1/user/auth/login';
