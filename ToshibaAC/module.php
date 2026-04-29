@@ -19,7 +19,18 @@ class ToshibaAC extends IPSModule
         $this->RegisterVariableFloat('TOSH_RoomTemp', 'Ist-Temperatur', '~Temperature.Room', 30);
         $this->RegisterVariableInteger('TOSH_Mode', 'Modus', 'TOSH.Mode', 40);
         $this->RegisterVariableInteger('TOSH_FanSpeed', 'Lüfterstufe', 'TOSH.FanSpeed', 50);
-        $this->RegisterVariableBoolean('TOSH_Swing', 'Swing', '~Switch', 60);
+        if (!IPS_VariableProfileExists('TOSH.AirFlow')) { IPS_CreateVariableProfile('TOSH.AirFlow', 1); }
+          IPS_SetVariableProfileAssociation('TOSH.AirFlow', 0, 'Aus', '', -1);
+          IPS_SetVariableProfileAssociation('TOSH.AirFlow', 1, 'Swing auf/ab', '', -1);
+          IPS_SetVariableProfileAssociation('TOSH.AirFlow', 2, 'Swing seitlich', '', -1);
+          IPS_SetVariableProfileAssociation('TOSH.AirFlow', 3, 'Swing auf/ab + seitlich', '', -1);
+          IPS_SetVariableProfileAssociation('TOSH.AirFlow', 4, 'Stufe 5 oben', '', -1);
+          IPS_SetVariableProfileAssociation('TOSH.AirFlow', 5, 'Stufe 4', '', -1);
+          IPS_SetVariableProfileAssociation('TOSH.AirFlow', 6, 'Stufe 3', '', -1);
+          IPS_SetVariableProfileAssociation('TOSH.AirFlow', 7, 'Stufe 2', '', -1);
+          IPS_SetVariableProfileAssociation('TOSH.AirFlow', 8, 'Stufe 1 unten', '', -1);
+        $this->RegisterVariableInteger('TOSH_AirFlow', 'Lamellen / Swing', 'TOSH.AirFlow', 60);
+        $this->RegisterVariableBoolean('TOSH_Swing', 'Swing', '~Switch', 61);
         $this->RegisterVariableBoolean('TOSH_EcoMode', 'Eco-Modus', '~Switch', 65);
         $this->RegisterVariableBoolean('TOSH_SilentMode', 'Silent-Modus', '~Switch', 66);
         $this->RegisterVariableString('TOSH_WriteInfo', 'Schreiben', '', 67);
@@ -125,7 +136,10 @@ class ToshibaAC extends IPSModule
         SetValueFloat($this->GetIDForIdent('TOSH_RoomTemp'), $decoded['RoomTemp']);
 
         if (!$freezeControls) { SetValueInteger($this->GetIDForIdent('TOSH_FanSpeed'), $decoded['FanSpeed']); }
-        if (!$freezeControls) { SetValueBoolean($this->GetIDForIdent('TOSH_Swing'), $decoded['Swing']); }
+        if (!$freezeControls) { if (!($pendingActive && $pendingIdent === 'TOSH_AirFlow')) {
+            SetValueInteger($this->GetIDForIdent('TOSH_AirFlow'), $decoded['AirFlow']);
+            }
+            SetValueBoolean($this->GetIDForIdent('TOSH_Swing'), $decoded['Swing']); }
         if (!$freezeControls) { SetValueBoolean($this->GetIDForIdent('TOSH_EcoMode'), $decoded['EcoMode']); }
         if (!$freezeControls) { SetValueBoolean($this->GetIDForIdent('TOSH_SilentMode'), $decoded['SilentMode']); }
 
@@ -181,7 +195,7 @@ class ToshibaAC extends IPSModule
 
     private function DecodeACStateData(string $hex)
     {
-        $bytes=str_split($hex,2); $feature=isset($bytes[5])?hexdec($bytes[5]):0; $fanRaw=isset($bytes[3])?hexdec($bytes[3]):0; $modeRaw=isset($bytes[1])?hexdec($bytes[1]):0;
+        $bytes=str_split($hex,2); $feature=isset($bytes[5])?hexdec($bytes[5]):0; $fanRaw=isset($bytes[3])?hexdec($bytes[3]):0; $modeRaw=isset($bytes[1])?hexdec($bytes[1]):0; $airFlowRaw=isset($bytes[3])?hexdec($bytes[3]):0;
         return [
             'Power'=>isset($bytes[0])?(hexdec($bytes[0])===0x30):false,'PowerRaw'=>$bytes[0]??'',
             'Mode'=>ToshibaACMQTTHelper::mapModeFromRaw($modeRaw),'ModeRaw'=>$bytes[1]??'',
@@ -190,8 +204,8 @@ class ToshibaAC extends IPSModule
             'Feature'=>$feature,'FeatureRaw'=>$bytes[5]??'','EcoMode'=>($feature===3),'SilentMode'=>($fanRaw===0x31 && $feature===0),
             'FanSpeed'=>ToshibaACMQTTHelper::mapFanFromRaw($fanRaw),'FanSpeedRaw'=>$bytes[3]??'',
             'RoomTemp'=>isset($bytes[8])?hexdec($bytes[8]):0,'RoomTempRaw'=>$bytes[8]??'',
-            'AirFlow'=>isset($bytes[9])?hexdec($bytes[9]):0,'AirFlowRaw'=>$bytes[9]??'',
-            'Swing'=>isset($bytes[10])?(hexdec($bytes[10])>0):false,'SwingRaw'=>$bytes[10]??'',
+            'AirFlow'=>ToshibaACMQTTHelper::mapAirFlowFromRaw($airFlowRaw),'AirFlowRaw'=>$bytes[3]??'',
+            'Swing'=>in_array($airFlowRaw, [0x41, 0x42, 0x43], true),'SwingRaw'=>$bytes[3]??'',
             'ByteCount'=>count($bytes),'Bytes'=>$bytes
         ];
     }
