@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/mqtt_helper.php';
 
 class ToshibaAC extends IPSModule
 {
@@ -64,6 +65,61 @@ class ToshibaAC extends IPSModule
         }
     }
 
+    public function TestMQTTPreparation()
+    {
+        if (!$this->EnsureLogin()) {
+            echo "❌ Login fehlgeschlagen.\n";
+            return false;
+        }
+
+        $accessToken = $this->GetBuffer('AccessToken');
+        $username = $this->ReadPropertyString('Username');
+        $deviceId = ToshibaACMQTTHelper::mobileDeviceId($username);
+
+        $registerPayload = json_encode([
+            'DeviceID' => $deviceId,
+            'DeviceType' => '1',
+            'Username' => $username
+        ]);
+
+        $result = $this->QueryAPI('https://mobileapi.toshibahomeaccontrols.com/api/Consumer/RegisterMobileDevice', $registerPayload, $accessToken);
+        $this->DebugLog(__FUNCTION__, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+        if (!$result || empty($result['ResObj']['SasToken'])) {
+            echo "❌ SAS Token holen fehlgeschlagen.\n";
+            return false;
+        }
+
+        $sas = $result['ResObj']['SasToken'];
+        $current = GetValueString($this->GetIDForIdent('TOSH_ACStateData'));
+        $newState = ToshibaACMQTTHelper::buildState($current, 'TOSH_SetTemp', 22);
+
+        $acUniqueId = $this->GetBuffer('LastACUniqueId');
+        if ($acUniqueId === '') {
+            $devices = json_decode($this->GetBuffer('DiscoveredDevices'), true) ?: [];
+            $selected = $this->ReadPropertyString('DeviceID');
+            foreach ($devices as $device) {
+                if (($device['id'] ?? '') === $selected) {
+                    $acUniqueId = $device['uniqueId'] ?? '';
+                    break;
+                }
+            }
+        }
+
+        $mqttPayload = ToshibaACMQTTHelper::commandPayload($deviceId, $acUniqueId, $newState);
+
+        echo "✅ SAS Token OK\n";
+        echo "DeviceID: " . $deviceId . "\n";
+        echo "AC UniqueID: " . ($acUniqueId ?: '(leer)') . "\n";
+        echo "Current: " . $current . "\n";
+        echo "New:     " . $newState . "\n";
+        echo "SAS Token: " . substr($sas, 0, 80) . "...\n";
+        echo "\n📦 MQTT Payload:\n" . $mqttPayload . "\n";
+
+        SetValueString($this->GetIDForIdent('TOSH_WriteInfo'), 'MQTT vorbereitet OK');
+        return true;
+    }
+
     public function DiscoverDevices()
     {
         $username = $this->ReadPropertyString('Username');
@@ -80,7 +136,7 @@ class ToshibaAC extends IPSModule
         $devices = [];
         foreach ($result['ResObj'] as $entry) {
             if (!empty($entry['ACList'])) {
-                foreach ($entry['ACList'] as $ac) { $devices[] = ['name' => $ac['Name'] ?? 'Unbekannt', 'id' => $ac['Id'] ?? '']; }
+                foreach ($entry['ACList'] as $ac) { $devices[] = ['name' => $ac['Name'] ?? 'Unbekannt', 'id' => $ac['Id'] ?? '', 'uniqueId' => $ac['DeviceUniqueId'] ?? '']; }
             }
         }
         if (empty($devices)) { echo "❌ Keine Geräte gefunden (leere ACList).\n"; return false; }
@@ -105,6 +161,7 @@ class ToshibaAC extends IPSModule
         $state = $result['ResObj'];
         if (!empty($state['ACStateData'])) {
             $hex = $state['ACStateData'];
+            $this->SetBuffer('LastACUniqueId', $state['ACDeviceUniqueId'] ?? '');
             $decoded = $this->DecodeACStateData($hex);
             SetValueBoolean($this->GetIDForIdent('TOSH_Power'), $decoded['Power']);
             SetValueInteger($this->GetIDForIdent('TOSH_Mode'), $decoded['Mode']);
