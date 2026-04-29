@@ -37,6 +37,13 @@ class ToshibaACMQTTHelper
         return $map[$v] ?? $v;
     }
 
+    public static function mapAirFlowToRaw($value): int
+    {
+        $v = (int)$value;
+        $map = [0 => 0x31, 1 => 0x41, 2 => 0x42, 3 => 0x43, 4 => 0x50, 5 => 0x51, 6 => 0x52, 7 => 0x53, 8 => 0x54];
+        return $map[$v] ?? $v;
+    }
+
     public static function mapAirFlowFromRaw($value): int
     {
         $v = (int)$value;
@@ -71,19 +78,18 @@ class ToshibaACMQTTHelper
                 break;
 
             case 'TOSH_FanSpeed':
-                $bytes[3] = sprintf('%02x', self::mapFanToRaw($value));
-                break;
+                return '';
 
             case 'TOSH_AirFlow':
-                return '';
+                $bytes[3] = sprintf('%02x', self::mapAirFlowToRaw($value));
+                break;
 
             case 'TOSH_EcoMode':
                 $bytes[5] = $value ? '03' : '00';
                 break;
 
             case 'TOSH_SilentMode':
-                $bytes[3] = $value ? '31' : '41';
-                break;
+                return '';
 
             default:
                 return '';
