@@ -26,7 +26,7 @@ class ToshibaAC extends IPSModule
         $this->RegisterVariableBoolean('TOSH_SilentMode', 'Silent-Modus', '~Switch', 66);
 
         $this->RegisterVariableString('TOSH_WriteInfo', 'Schreiben', '', 67);
-        SetValueString($this->GetIDForIdent('TOSH_WriteInfo'), 'Schreiben erfolgt nicht per REST. Nächster Schritt: native PHP AMQP/Azure IoT Implementierung.');
+        SetValueString($this->GetIDForIdent('TOSH_WriteInfo'), 'Schreiben erfolgt über MQTT / Azure IoT Hub.');
 
         $this->RegisterVariableString('TOSH_Firmware', 'Firmware', '', 70);
         $this->RegisterVariableString('TOSH_LastUpdate', 'Letztes Update', '', 80);
@@ -55,12 +55,7 @@ class ToshibaAC extends IPSModule
 
     public function TestConnection()
     {
-        if ($this->EnsureLogin()) {
-            $acId = $this->ReadPropertyString('DeviceID');
-            echo 'Verbindung erfolgreich. AC-ID: ' . ($acId ?: '(kein Gerät gewählt)');
-        } else {
-            echo 'Verbindung fehlgeschlagen.';
-        }
+        echo $this->EnsureLogin() ? 'Verbindung erfolgreich.' : 'Verbindung fehlgeschlagen.';
     }
 
     public function TestMQTTPreparation()
@@ -70,40 +65,16 @@ class ToshibaAC extends IPSModule
             return false;
         }
 
-        $accessToken = $this->GetBuffer('AccessToken');
-        $username = $this->ReadPropertyString('Username');
-        $deviceId = ToshibaACMQTTHelper::mobileDeviceId($username);
-
-        $registerPayload = json_encode([
-            'DeviceID' => $deviceId,
-            'DeviceType' => '1',
-            'Username' => $username
-        ]);
-
-        $result = $this->QueryAPI('https://mobileapi.toshibahomeaccontrols.com/api/Consumer/RegisterMobileDevice', $registerPayload, $accessToken);
-        $this->DebugLog(__FUNCTION__, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-
-        if (!$result || empty($result['ResObj']['SasToken'])) {
+        $deviceId = ToshibaACMQTTHelper::mobileDeviceId($this->ReadPropertyString('Username'));
+        $sas = $this->RegisterMobileDevice($deviceId);
+        if (!$sas) {
             echo "❌ SAS Token holen fehlgeschlagen.\n";
             return false;
         }
 
-        $sas = $result['ResObj']['SasToken'];
         $current = GetValueString($this->GetIDForIdent('TOSH_ACStateData'));
         $newState = ToshibaACMQTTHelper::buildState($current, 'TOSH_SetTemp', 22);
-
-        $acUniqueId = $this->GetBuffer('LastACUniqueId');
-        if ($acUniqueId === '') {
-            $devices = json_decode($this->GetBuffer('DiscoveredDevices'), true) ?: [];
-            $selected = $this->ReadPropertyString('DeviceID');
-            foreach ($devices as $device) {
-                if (($device['id'] ?? '') === $selected) {
-                    $acUniqueId = $device['uniqueId'] ?? '';
-                    break;
-                }
-            }
-        }
-
+        $acUniqueId = $this->ResolveACUniqueId();
         $mqttPayload = ToshibaACMQTTHelper::commandPayload($deviceId, $acUniqueId, $newState);
 
         echo "✅ SAS Token OK\n";
@@ -120,59 +91,67 @@ class ToshibaAC extends IPSModule
 
     public function DiscoverDevices()
     {
-        $username = $this->ReadPropertyString('Username');
-        $password = $this->ReadPropertyString('Password');
-        if ($username === '' || $password === '') { echo "❌ Benutzername oder Passwort fehlt.\n"; return false; }
-        $accessToken = $this->Login($username, $password);
-        if (!$accessToken) { echo "❌ Login fehlgeschlagen.\n"; return false; }
+        if (!$this->EnsureLogin()) { echo "❌ Login fehlgeschlagen.\n"; return false; }
         $consumerId = $this->GetBuffer('ConsumerId');
-        if (!$consumerId) { echo "❌ ConsumerId nicht gefunden.\n"; return false; }
         $url = 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerACMapping?consumerId=' . urlencode($consumerId);
-        $result = $this->QueryAPI($url, null, $accessToken);
-        $this->DebugLog(__FUNCTION__, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        $result = $this->QueryAPI($url, null, $this->GetBuffer('AccessToken'));
         if (!$result || empty($result['ResObj'])) { echo "❌ Keine Geräte gefunden.\n"; return false; }
+
         $devices = [];
         foreach ($result['ResObj'] as $entry) {
-            if (!empty($entry['ACList'])) {
-                foreach ($entry['ACList'] as $ac) { $devices[] = ['name' => $ac['Name'] ?? 'Unbekannt', 'id' => $ac['Id'] ?? '', 'uniqueId' => $ac['DeviceUniqueId'] ?? '']; }
+            foreach (($entry['ACList'] ?? []) as $ac) {
+                $devices[] = ['name' => $ac['Name'] ?? 'Unbekannt', 'id' => $ac['Id'] ?? '', 'uniqueId' => $ac['DeviceUniqueId'] ?? ''];
             }
         }
+
         if (empty($devices)) { echo "❌ Keine Geräte gefunden (leere ACList).\n"; return false; }
         $this->SetBuffer('DiscoveredDevices', json_encode($devices));
         $this->ReloadForm();
         echo "✅ Gefundene Geräte:\n";
         foreach ($devices as $device) { echo "📋 Name: {$device['name']} | ID: {$device['id']}\n"; }
-        echo "\nFalls die Auswahl nicht sofort sichtbar ist, Konfigurationsfenster einmal schließen und neu öffnen.\n";
         return true;
     }
 
     public function GetStatus()
     {
-        if (!$this->EnsureLogin()) { $this->DebugLog(__FUNCTION__, 'Login fehlgeschlagen'); echo "❌ Login fehlgeschlagen.\n"; return; }
-        $accessToken = $this->GetBuffer('AccessToken');
+        if (!$this->EnsureLogin()) { echo "❌ Login fehlgeschlagen.\n"; return; }
         $acId = $this->ReadPropertyString('DeviceID');
         if ($acId === '') { echo "❌ Keine DeviceID gewählt.\n"; return; }
+
         $url = 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetCurrentACState?ACId=' . urlencode($acId);
-        $result = $this->QueryAPI($url, null, $accessToken);
+        $result = $this->QueryAPI($url, null, $this->GetBuffer('AccessToken'));
         $this->DebugLog(__FUNCTION__, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
         if (!$result || empty($result['ResObj'])) { echo "❌ Keine Statusdaten erhalten.\n"; return; }
+
         $state = $result['ResObj'];
         if (!empty($state['ACStateData'])) {
             $hex = $state['ACStateData'];
             $this->SetBuffer('LastACUniqueId', $state['ACDeviceUniqueId'] ?? '');
             $decoded = $this->DecodeACStateData($hex);
-            SetValueBoolean($this->GetIDForIdent('TOSH_Power'), $decoded['Power']);
-            SetValueInteger($this->GetIDForIdent('TOSH_Mode'), $decoded['Mode']);
-            SetValueFloat($this->GetIDForIdent('TOSH_SetTemp'), $decoded['SetTemp']);
+            $pendingActive = ((int)$this->GetBuffer('PendingStateUntil') > time());
+            $pendingIdent = $this->GetBuffer('PendingIdent');
+
+            if (!($pendingActive && $pendingIdent === 'TOSH_Power')) { SetValueBoolean($this->GetIDForIdent('TOSH_Power'), $decoded['Power']); }
+            if (!($pendingActive && $pendingIdent === 'TOSH_Mode')) { SetValueInteger($this->GetIDForIdent('TOSH_Mode'), $decoded['Mode']); }
+            if (!($pendingActive && $pendingIdent === 'TOSH_SetTemp')) { SetValueFloat($this->GetIDForIdent('TOSH_SetTemp'), $decoded['SetTemp']); }
             SetValueFloat($this->GetIDForIdent('TOSH_RoomTemp'), $decoded['RoomTemp']);
-            SetValueInteger($this->GetIDForIdent('TOSH_FanSpeed'), $decoded['FanSpeed']);
+            if (!($pendingActive && $pendingIdent === 'TOSH_FanSpeed')) { SetValueInteger($this->GetIDForIdent('TOSH_FanSpeed'), $decoded['FanSpeed']); }
             SetValueBoolean($this->GetIDForIdent('TOSH_Swing'), $decoded['Swing']);
-            SetValueBoolean($this->GetIDForIdent('TOSH_EcoMode'), $decoded['EcoMode']);
-            SetValueBoolean($this->GetIDForIdent('TOSH_SilentMode'), $decoded['SilentMode']);
+            if (!($pendingActive && $pendingIdent === 'TOSH_EcoMode')) { SetValueBoolean($this->GetIDForIdent('TOSH_EcoMode'), $decoded['EcoMode']); }
+            if (!($pendingActive && $pendingIdent === 'TOSH_SilentMode')) { SetValueBoolean($this->GetIDForIdent('TOSH_SilentMode'), $decoded['SilentMode']); }
+
             SetValueString($this->GetIDForIdent('TOSH_ACStateData'), $hex);
             SetValueString($this->GetIDForIdent('TOSH_ACStateBytes'), $this->FormatACStateBytes($hex));
             SetValueString($this->GetIDForIdent('TOSH_DecodedState'), json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+            if ($pendingActive) {
+                SetValueString($this->GetIDForIdent('TOSH_WriteInfo'), 'Warte auf Cloud-Sync: ' . $pendingIdent);
+            } else {
+                $this->SetBuffer('PendingIdent', '');
+                $this->SetBuffer('PendingValue', '');
+            }
         }
+
         SetValueString($this->GetIDForIdent('TOSH_Firmware'), $state['FirmwareVersion'] ?? '');
         SetValueString($this->GetIDForIdent('TOSH_LastUpdate'), $state['UpdatedDate'] ?? '');
         SetValueInteger($this->GetIDForIdent('TOSH_Model'), (int)($state['Model'] ?? 0));
@@ -182,35 +161,15 @@ class ToshibaAC extends IPSModule
 
     public function GetSettings()
     {
-        if (!$this->EnsureLogin()) { $this->DebugLog(__FUNCTION__, 'Login fehlgeschlagen'); return; }
-        $accessToken = $this->GetBuffer('AccessToken');
-        $consumerId = $this->GetBuffer('ConsumerId');
-        $url = 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerProgramSettings?consumerId=' . urlencode($consumerId);
-        $result = $this->QueryAPI($url, null, $accessToken);
-        $this->DebugLog(__FUNCTION__, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        if (!$this->EnsureLogin()) { return; }
+        $url = 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerProgramSettings?consumerId=' . urlencode($this->GetBuffer('ConsumerId'));
+        $this->DebugLog(__FUNCTION__, json_encode($this->QueryAPI($url, null, $this->GetBuffer('AccessToken')), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
     }
 
     public function DebugDump()
     {
-        if (!$this->EnsureLogin()) { echo "❌ Login fehlgeschlagen.\n"; return; }
-        $accessToken = $this->GetBuffer('AccessToken');
-        $consumerId = $this->GetBuffer('ConsumerId');
-        $acId = $this->ReadPropertyString('DeviceID');
-        echo 'Gewählte DeviceID/ACId: ' . ($acId ?: '(leer)') . "\n";
-        echo 'ConsumerId: ' . ($consumerId ?: '(leer)') . "\n";
-        $endpoints = [
-            'CurrentACState_ACId' => 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetCurrentACState?ACId=' . urlencode($acId),
-            'CurrentACState_acId' => 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetCurrentACState?acId=' . urlencode($acId),
-            'CurrentACState_Id' => 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetCurrentACState?Id=' . urlencode($acId),
-            'ConsumerACMapping' => 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerACMapping?consumerId=' . urlencode($consumerId),
-            'ConsumerProgramSettings' => 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerProgramSettings?consumerId=' . urlencode($consumerId),
-        ];
-        foreach ($endpoints as $name => $url) {
-            $result = $this->QueryAPI($url, null, $accessToken);
-            echo "\n==============================\n" . $name . "\nURL: " . $url . "\n==============================\n";
-            echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
-            $this->DebugLog($name, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        }
+        $this->GetStatus();
+        echo "\nACStateData: " . GetValueString($this->GetIDForIdent('TOSH_ACStateData')) . "\n";
     }
 
     public function GetConfigurationForm()
@@ -222,56 +181,34 @@ class ToshibaAC extends IPSModule
         foreach ($form['elements'] as &$element) { if (($element['name'] ?? '') === 'DeviceID') { $element['options'] = $options; } }
         return json_encode($form);
     }
+
     private function SendMQTTCommand($ident, $value)
     {
-        if (!$this->EnsureLogin()) {
-            echo "❌ Login fehlgeschlagen.\n";
-            return false;
-        }
-
+        if (!$this->EnsureLogin()) { echo "❌ Login fehlgeschlagen.\n"; return false; }
         $current = GetValueString($this->GetIDForIdent('TOSH_ACStateData'));
         $newState = ToshibaACMQTTHelper::buildState($current, $ident, $value);
-
-        if ($newState === '') {
-            echo "❌ State konnte nicht gebaut werden.\n";
-            return false;
-        }
+        if ($newState === '') { echo "❌ State konnte nicht gebaut werden.\n"; return false; }
 
         $deviceId = ToshibaACMQTTHelper::mobileDeviceId($this->ReadPropertyString('Username'));
         $sas = $this->RegisterMobileDevice($deviceId);
-
-        if (!$sas) {
-            echo "❌ SAS Token holen fehlgeschlagen.\n";
-            return false;
-        }
+        if (!$sas) { echo "❌ SAS Token holen fehlgeschlagen.\n"; return false; }
 
         $host = 'toshibasmaciothubprod.azure-devices.net';
-        $clientId = $deviceId;
         $mqttUser = $host . '/' . $deviceId . '/?api-version=2021-04-12';
         $topic = 'devices/' . $deviceId . '/messages/events/type=mob';
-
-        $payload = ToshibaACMQTTHelper::commandPayload(
-            $deviceId,
-            $this->ResolveACUniqueId(),
-            $newState
-        );
+        $payload = ToshibaACMQTTHelper::commandPayload($deviceId, $this->ResolveACUniqueId(), $newState);
 
         try {
             $mqtt = new ToshibaACMQTTClient();
-            $mqtt->connect($host, $clientId, $mqttUser, $sas);
+            $mqtt->connect($host, $deviceId, $mqttUser, $sas);
             $mqtt->publish($topic, $payload);
             $mqtt->disconnect();
 
             SetValue($this->GetIDForIdent($ident), $value);
-            SetValueString($this->GetIDForIdent('TOSH_WriteInfo'), 'MQTT gesendet: ' . $ident);
-
-            IPS_Sleep(1500);
-
-            // Status ohne echo-Ausgabe aktualisieren
-            ob_start();
-            $this->GetStatus();
-            ob_end_clean();
-
+            $this->SetBuffer('PendingStateUntil', (string)(time() + 15));
+            $this->SetBuffer('PendingIdent', $ident);
+            $this->SetBuffer('PendingValue', json_encode($value));
+            SetValueString($this->GetIDForIdent('TOSH_WriteInfo'), 'MQTT gesendet, warte auf Cloud-Sync: ' . $ident);
             return true;
         } catch (Exception $e) {
             echo '❌ MQTT Fehler: ' . $e->getMessage() . "\n";
@@ -282,46 +219,24 @@ class ToshibaAC extends IPSModule
 
     private function RegisterMobileDevice($deviceId)
     {
-        $payload = json_encode([
-            'DeviceID' => $deviceId,
-            'DeviceType' => '1',
-            'Username' => $this->ReadPropertyString('Username')
-        ]);
-
-        $result = $this->QueryAPI(
-            'https://mobileapi.toshibahomeaccontrols.com/api/Consumer/RegisterMobileDevice',
-            $payload,
-            $this->GetBuffer('AccessToken')
-        );
-
+        $payload = json_encode(['DeviceID' => $deviceId, 'DeviceType' => '1', 'Username' => $this->ReadPropertyString('Username')]);
+        $result = $this->QueryAPI('https://mobileapi.toshibahomeaccontrols.com/api/Consumer/RegisterMobileDevice', $payload, $this->GetBuffer('AccessToken'));
         return $result['ResObj']['SasToken'] ?? false;
     }
 
     private function ResolveACUniqueId()
     {
         $uniqueId = $this->GetBuffer('LastACUniqueId');
-
-        if ($uniqueId !== '') {
-            return $uniqueId;
-        }
-
+        if ($uniqueId !== '') { return $uniqueId; }
         $selected = $this->ReadPropertyString('DeviceID');
         $devices = json_decode($this->GetBuffer('DiscoveredDevices'), true) ?: [];
-
-        foreach ($devices as $device) {
-            if (($device['id'] ?? '') === $selected) {
-                return $device['uniqueId'] ?? '';
-            }
-        }
-
+        foreach ($devices as $device) { if (($device['id'] ?? '') === $selected) { return $device['uniqueId'] ?? ''; } }
         return '';
     }
 
     private function EnsureLogin()
     {
-        $accessToken = $this->GetBuffer('AccessToken');
-        $consumerId = $this->GetBuffer('ConsumerId');
-        if (!empty($accessToken) && !empty($consumerId)) { return true; }
+        if ($this->GetBuffer('AccessToken') !== '' && $this->GetBuffer('ConsumerId') !== '') { return true; }
         $username = $this->ReadPropertyString('Username');
         $password = $this->ReadPropertyString('Password');
         if ($username === '' || $password === '') { return false; }
@@ -330,13 +245,10 @@ class ToshibaAC extends IPSModule
 
     private function Login($username, $password)
     {
-        $url = 'https://mobileapi.toshibahomeaccontrols.com/api/Consumer/Login';
-        $payload = json_encode(['Username' => $username, 'Password' => $password]);
-        $result = $this->QueryAPI($url, $payload);
-        if (!$result || empty($result['ResObj']['access_token']) || empty($result['ResObj']['consumerId'])) { $this->DebugLog(__FUNCTION__, 'Login fehlgeschlagen oder unvollständig'); return false; }
+        $result = $this->QueryAPI('https://mobileapi.toshibahomeaccontrols.com/api/Consumer/Login', json_encode(['Username' => $username, 'Password' => $password]));
+        if (!$result || empty($result['ResObj']['access_token']) || empty($result['ResObj']['consumerId'])) { return false; }
         $this->SetBuffer('AccessToken', $result['ResObj']['access_token']);
         $this->SetBuffer('ConsumerId', $result['ResObj']['consumerId']);
-        $this->DebugLog(__FUNCTION__, 'Login erfolgreich');
         return $result['ResObj']['access_token'];
     }
 
