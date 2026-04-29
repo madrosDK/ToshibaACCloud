@@ -189,7 +189,7 @@ class ToshibaAC extends IPSModule
         try {
             $mqtt=new ToshibaACMQTTClient(); $mqtt->connect($host,$deviceId,$mqttUser,$sas); $mqtt->publish($topic,$payload); $mqtt->disconnect();
             $this->ApplyDecodedState($newState, false);
-            $this->SetBuffer('PendingStateUntil', (string)(time() + 20));
+            $this->SetBuffer('PendingStateUntil', (string)(time() + 5));
             $this->SetBuffer('PendingIdent', $ident);
             $this->SetBuffer('PendingValue', json_encode($value));
             SetValueString($this->GetIDForIdent('TOSH_WriteInfo'), 'MQTT gesendet, lokale Anzeige sofort aktualisiert: ' . $ident);
