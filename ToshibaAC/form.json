@@ -11,13 +11,12 @@
             "caption": "Passwort"
         },
         {
-          "type": "Select",
-          "name": "DeviceID",
-          "caption": "Gerät auswählen",
-          "options": [],
-          "default": ""
+            "type": "Select",
+            "name": "DeviceID",
+            "caption": "Gerät auswählen",
+            "options": [],
+            "default": ""
         }
-
     ],
     "actions": [
         {
@@ -29,6 +28,11 @@
             "type": "Button",
             "caption": "Status jetzt abrufen",
             "onClick": "TOSH_GetStatus($id);"
+        },
+        {
+            "type": "Button",
+            "caption": "API-Rohdaten ausgeben",
+            "onClick": "TOSH_DebugDump($id);"
         },
         {
             "type": "Button",
