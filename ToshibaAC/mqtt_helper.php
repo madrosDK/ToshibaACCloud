@@ -16,10 +16,24 @@ class ToshibaACMQTTHelper
         return $map[$v] ?? $v;
     }
 
+    public static function mapModeFromRaw($value): int
+    {
+        $v = (int)$value;
+        $map = [0x41 => 0, 0x42 => 1, 0x43 => 2, 0x44 => 3, 0x45 => 4];
+        return $map[$v] ?? $v;
+    }
+
     public static function mapFanToRaw($value): int
     {
         $v = (int)$value;
         $map = [0 => 0x41, 1 => 0x31, 2 => 0x32, 3 => 0x34, 4 => 0x36];
+        return $map[$v] ?? $v;
+    }
+
+    public static function mapFanFromRaw($value): int
+    {
+        $v = (int)$value;
+        $map = [0x41 => 0, 0x31 => 1, 0x32 => 2, 0x34 => 3, 0x36 => 4];
         return $map[$v] ?? $v;
     }
 
@@ -38,12 +52,10 @@ class ToshibaACMQTTHelper
             case 'TOSH_Mode':
                 $mode = self::mapModeToRaw($value);
                 $bytes[1] = sprintf('%02x', $mode);
-
-                // App-Verhalten nachgebildet: Cool 23 Auto -> Dry 22 Auto setzt zusätzlich Temp/Fan/Airflow.
                 if ($mode === 0x44) {
-                    $bytes[2] = '16'; // 22 °C
-                    $bytes[3] = '41'; // Fan Auto
-                    $bytes[9] = '0d'; // Airflow/Lamelle Default bei Dry
+                    $bytes[2] = '16';
+                    $bytes[3] = '41';
+                    $bytes[9] = '0d';
                 }
                 break;
 
