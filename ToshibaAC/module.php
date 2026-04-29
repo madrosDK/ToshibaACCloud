@@ -364,14 +364,15 @@ public function DiscoverDevices()
     // Buffer setzen
     $this->SetBuffer('DiscoveredDevices', json_encode($devices));
 
-    // Formular neu laden
-    IPS_ApplyChanges($this->InstanceID);
+    // Formular im Konfigurationsdialog neu laden
+    $this->ReloadForm();
 
     // Ausgabe für die Konsole
     echo "✅ Gefundene Geräte:\n";
     foreach ($devices as $device) {
         echo "📋 Name: {$device['name']} | ID: {$device['id']}\n";
     }
+    echo "\nBitte das Konfigurationsfenster ggf. einmal schließen und wieder öffnen, falls die Auswahl nicht sofort sichtbar ist.\n";
 }
 
 
@@ -435,8 +436,14 @@ public function DiscoverDevices()
           $consumerId  = $this->GetBuffer('ConsumerId');
           $acId        = $this->ReadPropertyString('DeviceID');
 
+          echo "Gewählte DeviceID/ACId: " . ($acId ?: '(leer)') . "\n";
+          echo "ConsumerId: " . ($consumerId ?: '(leer)') . "\n";
+
           $endpoints = [
-              'CurrentACState' => 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetCurrentACState?ACId=' . urlencode($acId),
+              'CurrentACState_ACId' => 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetCurrentACState?ACId=' . urlencode($acId),
+              'CurrentACState_acId' => 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetCurrentACState?acId=' . urlencode($acId),
+              'CurrentACState_Id'   => 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetCurrentACState?Id=' . urlencode($acId),
+
               'ConsumerACMapping' => 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerACMapping?consumerId=' . urlencode($consumerId),
               'ConsumerProgramSettings' => 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerProgramSettings?consumerId=' . urlencode($consumerId),
           ];

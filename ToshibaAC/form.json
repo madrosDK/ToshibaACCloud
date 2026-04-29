@@ -14,8 +14,13 @@
           "type": "Select",
           "name": "DeviceID",
           "caption": "Gerät auswählen",
-          "options": [],
-          "default": ""
+          "options": [
+                {
+                    "caption": "Bitte zuerst Geräte abfragen …",
+                    "value": ""
+                }
+            ],
+            "default": ""
         }
 
     ],
@@ -23,7 +28,7 @@
         {
             "type": "Button",
             "caption": "Geräte abfragen",
-            "onClick": "IPS_RequestAction($id, 'DiscoverDevices', '');"
+            "onClick": "TOSH_DiscoverDevices($id);"
         },
         {
             "type": "Button",
