@@ -9,6 +9,20 @@ class ToshibaACMQTTHelper
         return $username . '_' . self::CLIENT_SUFFIX;
     }
 
+    public static function mapModeToRaw($value): int
+    {
+        $v = (int)$value;
+        $map = [0 => 0x41, 1 => 0x42, 2 => 0x43, 3 => 0x44, 4 => 0x45];
+        return $map[$v] ?? $v;
+    }
+
+    public static function mapFanToRaw($value): int
+    {
+        $v = (int)$value;
+        $map = [0 => 0x41, 1 => 0x31, 2 => 0x32, 3 => 0x34, 4 => 0x36];
+        return $map[$v] ?? $v;
+    }
+
     public static function buildState(string $currentHex, string $ident, $value): string
     {
         $bytes = str_split($currentHex, 2);
@@ -22,7 +36,7 @@ class ToshibaACMQTTHelper
                 break;
 
             case 'TOSH_Mode':
-                $mode = (int)$value;
+                $mode = self::mapModeToRaw($value);
                 $bytes[1] = sprintf('%02x', $mode);
 
                 // App-Verhalten nachgebildet: Cool 23 Auto -> Dry 22 Auto setzt zusätzlich Temp/Fan/Airflow.
@@ -38,7 +52,7 @@ class ToshibaACMQTTHelper
                 break;
 
             case 'TOSH_FanSpeed':
-                $bytes[3] = sprintf('%02x', (int)$value);
+                $bytes[3] = sprintf('%02x', self::mapFanToRaw($value));
                 break;
 
             case 'TOSH_EcoMode':
