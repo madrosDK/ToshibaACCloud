@@ -15,10 +15,18 @@ class ToshibaAC extends IPSModule
         $this->RegisterProfiles();
         $this->RegisterTimer('UpdateTimer', 0, 'TOSH_GetStatus($_IPS["TARGET"]);');
         $this->RegisterVariableBoolean('TOSH_Power', 'Power', '~Switch', 10);
+        $this->EnableAction('TOSH_Power');
+
         $this->RegisterVariableFloat('TOSH_SetTemp', 'Soll-Temperatur', '~Temperature.Room', 20);
+        $this->EnableAction('TOSH_SetTemp');
+
         $this->RegisterVariableFloat('TOSH_RoomTemp', 'Ist-Temperatur', '~Temperature.Room', 30);
+
         $this->RegisterVariableInteger('TOSH_Mode', 'Modus', 'TOSH.Mode', 40);
+        $this->EnableAction('TOSH_Mode');
+
         $this->RegisterVariableInteger('TOSH_FanSpeed', 'Lüfterstufe', 'TOSH.FanSpeed', 50);
+        $this->EnableAction('TOSH_FanSpeed');
         if (!IPS_VariableProfileExists('TOSH.AirFlow')) { IPS_CreateVariableProfile('TOSH.AirFlow', 1); }
           IPS_SetVariableProfileAssociation('TOSH.AirFlow', 0, 'Aus', '', -1);
           IPS_SetVariableProfileAssociation('TOSH.AirFlow', 1, 'Swing auf/ab', '', -1);
@@ -29,10 +37,17 @@ class ToshibaAC extends IPSModule
           IPS_SetVariableProfileAssociation('TOSH.AirFlow', 6, 'Stufe 3', '', -1);
           IPS_SetVariableProfileAssociation('TOSH.AirFlow', 7, 'Stufe 2', '', -1);
           IPS_SetVariableProfileAssociation('TOSH.AirFlow', 8, 'Stufe 1 unten', '', -1);
+
         $this->RegisterVariableInteger('TOSH_AirFlow', 'Lamellen / Swing', 'TOSH.AirFlow', 60);
-        $this->RegisterVariableBoolean('TOSH_Swing', 'Swing', '~Switch', 61);
+        $this->EnableAction('TOSH_AirFlow');
+
+        $this->RegisterVariableBoolean('TOSH_Swing', 'Swing aktiv', '~Switch', 61);
+
         $this->RegisterVariableBoolean('TOSH_EcoMode', 'Eco-Modus', '~Switch', 65);
+        $this->EnableAction('TOSH_EcoMode');
+
         $this->RegisterVariableBoolean('TOSH_SilentMode', 'Silent-Modus', '~Switch', 66);
+        $this->EnableAction('TOSH_SilentMode');
         $this->RegisterVariableString('TOSH_WriteInfo', 'Schreiben', '', 67);
         $this->RegisterVariableString('TOSH_Firmware', 'Firmware', '', 70);
         $this->RegisterVariableString('TOSH_LastUpdate', 'Letztes Update', '', 80);
@@ -136,10 +151,8 @@ class ToshibaAC extends IPSModule
         SetValueFloat($this->GetIDForIdent('TOSH_RoomTemp'), $decoded['RoomTemp']);
 
         if (!$freezeControls) { SetValueInteger($this->GetIDForIdent('TOSH_FanSpeed'), $decoded['FanSpeed']); }
-        if (!$freezeControls) { if (!($pendingActive && $pendingIdent === 'TOSH_AirFlow')) {
-            SetValueInteger($this->GetIDForIdent('TOSH_AirFlow'), $decoded['AirFlow']);
-            }
-            SetValueBoolean($this->GetIDForIdent('TOSH_Swing'), $decoded['Swing']); }
+        if (!$freezeControls) { SetValueInteger($this->GetIDForIdent('TOSH_AirFlow'), $decoded['AirFlow']); }
+        if (!$freezeControls) { SetValueBoolean($this->GetIDForIdent('TOSH_Swing'), $decoded['Swing']); }
         if (!$freezeControls) { SetValueBoolean($this->GetIDForIdent('TOSH_EcoMode'), $decoded['EcoMode']); }
         if (!$freezeControls) { SetValueBoolean($this->GetIDForIdent('TOSH_SilentMode'), $decoded['SilentMode']); }
 
