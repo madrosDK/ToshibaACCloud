@@ -266,7 +266,11 @@ class ToshibaAC extends IPSModule
             SetValueString($this->GetIDForIdent('TOSH_WriteInfo'), 'MQTT gesendet: ' . $ident);
 
             IPS_Sleep(1500);
+
+            // Status ohne echo-Ausgabe aktualisieren
+            ob_start();
             $this->GetStatus();
+            ob_end_clean();
 
             return true;
         } catch (Exception $e) {
