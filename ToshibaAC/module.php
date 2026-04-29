@@ -14,6 +14,7 @@ class ToshibaAC extends IPSModule
         $this->RegisterPropertyInteger('UpdateInterval', 0);
         $this->RegisterPropertyBoolean('Debug', false);
 
+        $this->RegisterProfiles();
         $this->RegisterTimer('UpdateTimer', 0, 'TOSH_GetStatus($_IPS["TARGET"]);');
 
         $this->RegisterVariableBoolean('TOSH_Power', 'Power', '~Switch', 10);
@@ -40,8 +41,30 @@ class ToshibaAC extends IPSModule
     public function ApplyChanges()
     {
         parent::ApplyChanges();
+        $this->RegisterProfiles();
         $interval = $this->ReadPropertyInteger('UpdateInterval');
         $this->SetTimerInterval('UpdateTimer', $interval > 0 ? $interval * 1000 : 0);
+    }
+
+    private function RegisterProfiles()
+    {
+        if (!IPS_VariableProfileExists('TOSH.Mode')) {
+            IPS_CreateVariableProfile('TOSH.Mode', 1);
+        }
+        IPS_SetVariableProfileAssociation('TOSH.Mode', 65, 'Auto', '', -1);
+        IPS_SetVariableProfileAssociation('TOSH.Mode', 66, 'Cool', '', -1);
+        IPS_SetVariableProfileAssociation('TOSH.Mode', 67, 'Heat', '', -1);
+        IPS_SetVariableProfileAssociation('TOSH.Mode', 68, 'Dry', '', -1);
+        IPS_SetVariableProfileAssociation('TOSH.Mode', 69, 'Fan', '', -1);
+
+        if (!IPS_VariableProfileExists('TOSH.FanSpeed')) {
+            IPS_CreateVariableProfile('TOSH.FanSpeed', 1);
+        }
+        IPS_SetVariableProfileAssociation('TOSH.FanSpeed', 49, 'Quiet', '', -1);
+        IPS_SetVariableProfileAssociation('TOSH.FanSpeed', 50, 'Low', '', -1);
+        IPS_SetVariableProfileAssociation('TOSH.FanSpeed', 52, 'Medium', '', -1);
+        IPS_SetVariableProfileAssociation('TOSH.FanSpeed', 54, 'High', '', -1);
+        IPS_SetVariableProfileAssociation('TOSH.FanSpeed', 65, 'Auto', '', -1);
     }
 
     public function RequestAction($Ident, $Value)
