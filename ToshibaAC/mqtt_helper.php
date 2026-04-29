@@ -20,21 +20,35 @@ class ToshibaACMQTTHelper
             case 'TOSH_Power':
                 $bytes[0] = $value ? '30' : '31';
                 break;
+
             case 'TOSH_Mode':
-                $bytes[1] = sprintf('%02x', (int)$value);
+                $mode = (int)$value;
+                $bytes[1] = sprintf('%02x', $mode);
+
+                // App-Verhalten nachgebildet: Cool 23 Auto -> Dry 22 Auto setzt zusätzlich Temp/Fan/Airflow.
+                if ($mode === 0x44) {
+                    $bytes[2] = '16'; // 22 °C
+                    $bytes[3] = '41'; // Fan Auto
+                    $bytes[9] = '0d'; // Airflow/Lamelle Default bei Dry
+                }
                 break;
+
             case 'TOSH_SetTemp':
                 $bytes[2] = sprintf('%02x', max(5, min(30, (int)$value)));
                 break;
+
             case 'TOSH_FanSpeed':
                 $bytes[3] = sprintf('%02x', (int)$value);
                 break;
+
             case 'TOSH_EcoMode':
                 $bytes[5] = $value ? '03' : '00';
                 break;
+
             case 'TOSH_SilentMode':
                 $bytes[3] = $value ? '31' : '41';
                 break;
+
             default:
                 return '';
         }
