@@ -116,20 +116,29 @@ class ToshibaAC extends IPSModule
     {
         $decoded = $this->DecodeACStateData($hex);
         $pendingActive = $respectPending && ((int)$this->GetBuffer('PendingStateUntil') > time());
-        $pendingIdent = $this->GetBuffer('PendingIdent');
-        if (!($pendingActive && $pendingIdent === 'TOSH_Power')) { SetValueBoolean($this->GetIDForIdent('TOSH_Power'), $decoded['Power']); }
-        if (!($pendingActive && $pendingIdent === 'TOSH_Mode')) { SetValueInteger($this->GetIDForIdent('TOSH_Mode'), $decoded['Mode']); }
-        if (!($pendingActive && $pendingIdent === 'TOSH_SetTemp')) { SetValueFloat($this->GetIDForIdent('TOSH_SetTemp'), $decoded['SetTemp']); }
+        $freezeControls = $pendingActive;
+
+        if (!$freezeControls) { SetValueBoolean($this->GetIDForIdent('TOSH_Power'), $decoded['Power']); }
+        if (!$freezeControls) { SetValueInteger($this->GetIDForIdent('TOSH_Mode'), $decoded['Mode']); }
+        if (!$freezeControls) { SetValueFloat($this->GetIDForIdent('TOSH_SetTemp'), $decoded['SetTemp']); }
+
         SetValueFloat($this->GetIDForIdent('TOSH_RoomTemp'), $decoded['RoomTemp']);
-        if (!($pendingActive && $pendingIdent === 'TOSH_FanSpeed')) { SetValueInteger($this->GetIDForIdent('TOSH_FanSpeed'), $decoded['FanSpeed']); }
-        SetValueBoolean($this->GetIDForIdent('TOSH_Swing'), $decoded['Swing']);
-        if (!($pendingActive && $pendingIdent === 'TOSH_EcoMode')) { SetValueBoolean($this->GetIDForIdent('TOSH_EcoMode'), $decoded['EcoMode']); }
-        if (!($pendingActive && $pendingIdent === 'TOSH_SilentMode')) { SetValueBoolean($this->GetIDForIdent('TOSH_SilentMode'), $decoded['SilentMode']); }
+
+        if (!$freezeControls) { SetValueInteger($this->GetIDForIdent('TOSH_FanSpeed'), $decoded['FanSpeed']); }
+        if (!$freezeControls) { SetValueBoolean($this->GetIDForIdent('TOSH_Swing'), $decoded['Swing']); }
+        if (!$freezeControls) { SetValueBoolean($this->GetIDForIdent('TOSH_EcoMode'), $decoded['EcoMode']); }
+        if (!$freezeControls) { SetValueBoolean($this->GetIDForIdent('TOSH_SilentMode'), $decoded['SilentMode']); }
+
         SetValueString($this->GetIDForIdent('TOSH_ACStateData'), $hex);
         SetValueString($this->GetIDForIdent('TOSH_ACStateBytes'), $this->FormatACStateBytes($hex));
         SetValueString($this->GetIDForIdent('TOSH_DecodedState'), json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        if ($pendingActive) { SetValueString($this->GetIDForIdent('TOSH_WriteInfo'), 'Warte auf Cloud-Sync: ' . $pendingIdent); }
-        else { $this->SetBuffer('PendingIdent', ''); $this->SetBuffer('PendingValue', ''); }
+
+        if ($pendingActive) {
+            SetValueString($this->GetIDForIdent('TOSH_WriteInfo'), 'Warte auf Cloud-Sync: ' . $this->GetBuffer('PendingIdent'));
+        } else {
+            $this->SetBuffer('PendingIdent', '');
+            $this->SetBuffer('PendingValue', '');
+        }
     }
 
     public function GetSettings(){ if (!$this->EnsureLogin()) { return; } $url='https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerProgramSettings?consumerId='.urlencode($this->GetBuffer('ConsumerId')); $this->DebugLog(__FUNCTION__, json_encode($this->QueryAPI($url,null,$this->GetBuffer('AccessToken')), JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE)); }
@@ -153,7 +162,7 @@ class ToshibaAC extends IPSModule
         try {
             $mqtt=new ToshibaACMQTTClient(); $mqtt->connect($host,$deviceId,$mqttUser,$sas); $mqtt->publish($topic,$payload); $mqtt->disconnect();
             $this->ApplyDecodedState($newState, false);
-            $this->SetBuffer('PendingStateUntil', (string)(time() + 15));
+            $this->SetBuffer('PendingStateUntil', (string)(time() + 20));
             $this->SetBuffer('PendingIdent', $ident);
             $this->SetBuffer('PendingValue', json_encode($value));
             SetValueString($this->GetIDForIdent('TOSH_WriteInfo'), 'MQTT gesendet, lokale Anzeige sofort aktualisiert: ' . $ident);
