@@ -1,53 +1,15 @@
 {
     "elements": [
-        {
-            "type": "ValidationTextBox",
-            "name": "Username",
-            "caption": "Benutzername"
-        },
-        {
-            "type": "PasswordTextBox",
-            "name": "Password",
-            "caption": "Passwort"
-        },
-        {
-            "type": "Select",
-            "name": "DeviceID",
-            "caption": "Gerät auswählen",
-            "options": [
-                {
-                    "caption": "Bitte zuerst Geräte abfragen …",
-                    "value": ""
-                }
-            ],
-            "default": ""
-        },
-        {
-            "type": "CheckBox",
-            "name": "Debug",
-            "caption": "Debug-Modus"
-        }
+        {"type":"ValidationTextBox","name":"Username","caption":"Benutzername"},
+        {"type":"PasswordTextBox","name":"Password","caption":"Passwort"},
+        {"type":"Select","name":"DeviceID","caption":"Gerät auswählen","options":[{"caption":"Bitte zuerst Geräte abfragen …","value":""}],"default":""},
+        {"type":"NumberSpinner","name":"UpdateInterval","caption":"Abfrageintervall (Sekunden)","minimum":0,"suffix":" Sekunden"},
+        {"type":"CheckBox","name":"Debug","caption":"Debug-Modus"}
     ],
     "actions": [
-        {
-            "type": "Button",
-            "caption": "Geräte abfragen",
-            "onClick": "TOSH_DiscoverDevices($id);"
-        },
-        {
-            "type": "Button",
-            "caption": "Status jetzt abrufen",
-            "onClick": "TOSH_GetStatus($id);"
-        },
-        {
-            "type": "Button",
-            "caption": "API-Rohdaten ausgeben",
-            "onClick": "TOSH_DebugDump($id);"
-        },
-        {
-            "type": "Button",
-            "caption": "Testverbindung",
-            "onClick": "TOSH_TestConnection($id);"
-        }
+        {"type":"Button","caption":"Geräte abfragen","onClick":"TOSH_DiscoverDevices($id);"},
+        {"type":"Button","caption":"Status jetzt abrufen","onClick":"TOSH_GetStatus($id);"},
+        {"type":"Button","caption":"API-Rohdaten ausgeben","onClick":"TOSH_DebugDump($id);"},
+        {"type":"Button","caption":"Testverbindung","onClick":"TOSH_TestConnection($id);"}
     ]
 }
