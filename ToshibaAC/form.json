@@ -10,6 +10,7 @@
         {"type":"Button","caption":"Geräte abfragen","onClick":"IPS_RequestAction($id, 'DiscoverDevices', '');"},
         {"type":"Button","caption":"Status jetzt abrufen","onClick":"TOSH_GetStatus($id);"},
         {"type":"Button","caption":"API-Rohdaten ausgeben","onClick":"TOSH_DebugDump($id);"},
+        {"type":"Button","caption":"MQTT Vorbereitung testen","onClick":"TOSH_TestMQTTPreparation($id);"},
         {"type":"Button","caption":"Testverbindung","onClick":"TOSH_TestConnection($id);"}
     ]
 }
