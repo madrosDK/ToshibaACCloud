@@ -424,5 +424,35 @@ public function DiscoverDevices()
           return $data;
       }
 
+      public function DebugDump()
+      {
+          if (!$this->EnsureLoginAndACId()) {
+              echo "❌ Login fehlgeschlagen.\n";
+              return;
+          }
+
+          $accessToken = $this->GetBuffer('AccessToken');
+          $consumerId  = $this->GetBuffer('ConsumerId');
+          $acId        = $this->ReadPropertyString('DeviceID');
+
+          $endpoints = [
+              'CurrentACState' => 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetCurrentACState?ACId=' . urlencode($acId),
+              'ConsumerACMapping' => 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerACMapping?consumerId=' . urlencode($consumerId),
+              'ConsumerProgramSettings' => 'https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerProgramSettings?consumerId=' . urlencode($consumerId),
+          ];
+
+          foreach ($endpoints as $name => $url) {
+              $result = $this->QueryAPI($url, null, $accessToken);
+
+              echo "\n==============================\n";
+              echo $name . "\n";
+              echo "==============================\n";
+              echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+              echo "\n";
+
+              $this->SendDebug($name, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), 0);
+          }
+      }
+
 
 }
