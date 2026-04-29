@@ -37,6 +37,13 @@ class ToshibaACMQTTHelper
         return $map[$v] ?? $v;
     }
 
+    public static function mapAirFlowFromRaw($value): int
+    {
+        $v = (int)$value;
+        $map = [0x31 => 0, 0x41 => 1, 0x42 => 2, 0x43 => 3, 0x50 => 4, 0x51 => 5, 0x52 => 6, 0x53 => 7, 0x54 => 8];
+        return $map[$v] ?? 0;
+    }
+
     public static function buildState(string $currentHex, string $ident, $value): string
     {
         $bytes = str_split($currentHex, 2);
