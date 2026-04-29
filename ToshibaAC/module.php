@@ -134,6 +134,34 @@ class ToshibaAC extends IPSModule
 
     public function GetSettings(){ if (!$this->EnsureLogin()) { return; } $url='https://mobileapi.toshibahomeaccontrols.com/api/AC/GetConsumerProgramSettings?consumerId='.urlencode($this->GetBuffer('ConsumerId')); $this->DebugLog(__FUNCTION__, json_encode($this->QueryAPI($url,null,$this->GetBuffer('AccessToken')), JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE)); }
     public function DebugDump(){ $this->GetStatus(); echo "\nACStateData: " . GetValueString($this->GetIDForIdent('TOSH_ACStateData')) . "\n"; }
+
+    public function ApplyPreset($preset)
+    {
+        switch ($preset) {
+            case 'Cool22Auto':
+                $this->SendMQTTCommand('TOSH_Power', true);
+                $this->SendMQTTCommand('TOSH_Mode', 1);
+                $this->SendMQTTCommand('TOSH_SetTemp', 22);
+                $this->SendMQTTCommand('TOSH_FanSpeed', 0);
+                break;
+            case 'Heat22Auto':
+                $this->SendMQTTCommand('TOSH_Power', true);
+                $this->SendMQTTCommand('TOSH_Mode', 2);
+                $this->SendMQTTCommand('TOSH_SetTemp', 22);
+                $this->SendMQTTCommand('TOSH_FanSpeed', 0);
+                break;
+            case 'Dry22Auto':
+                $this->SendMQTTCommand('TOSH_Power', true);
+                $this->SendMQTTCommand('TOSH_Mode', 3);
+                $this->SendMQTTCommand('TOSH_SetTemp', 22);
+                $this->SendMQTTCommand('TOSH_FanSpeed', 0);
+                break;
+            case 'Off':
+                $this->SendMQTTCommand('TOSH_Power', false);
+                break;
+        }
+    }
+
     public function GetConfigurationForm(){ $form=json_decode(file_get_contents(__DIR__.'/form.json'),true); $devices=json_decode($this->GetBuffer('DiscoveredDevices'),true)?:[]; $options=[['caption'=>'Bitte Gerät auswählen …','value'=>'']]; foreach($devices as $device){$options[]=['caption'=>"{$device['name']} ({$device['id']})",'value'=>$device['id']];} foreach($form['elements'] as &$element){if(($element['name']??'')==='DeviceID'){$element['options']=$options;}} return json_encode($form); }
 
     private function SendMQTTCommand($ident, $value)
