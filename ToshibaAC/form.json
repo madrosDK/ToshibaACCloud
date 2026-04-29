@@ -7,7 +7,7 @@
         {"type":"CheckBox","name":"Debug","caption":"Debug-Modus"}
     ],
     "actions": [
-        {"type":"Button","caption":"Geräte abfragen","onClick":"TOSH_DiscoverDevices($id);"},
+        {"type":"Button","caption":"Geräte abfragen","onClick":"IPS_RequestAction($id, 'DiscoverDevices', '');"},
         {"type":"Button","caption":"Status jetzt abrufen","onClick":"TOSH_GetStatus($id);"},
         {"type":"Button","caption":"API-Rohdaten ausgeben","onClick":"TOSH_DebugDump($id);"},
         {"type":"Button","caption":"Testverbindung","onClick":"TOSH_TestConnection($id);"}
