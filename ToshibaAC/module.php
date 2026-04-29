@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/mqtt_helper.php';
+require_once __DIR__ . '/mqtt_client.php';
 
 class ToshibaAC extends IPSModule
 {
@@ -45,14 +46,11 @@ class ToshibaAC extends IPSModule
 
     public function RequestAction($Ident, $Value)
     {
-        switch ($Ident) {
-            case 'DiscoverDevices':
-                return $this->DiscoverDevices();
-            default:
-                echo "❌ Schreiben ist aktuell deaktiviert. Toshiba nutzt dafür Azure IoT Hub/AMQP (CMD_FCU_TO_AC), nicht den bisherigen REST-Payload.\n";
-                SetValueString($this->GetIDForIdent('TOSH_WriteInfo'), 'Schreiben deaktiviert: AMQP/Azure IoT Implementierung erforderlich.');
-                return false;
+        if ($Ident === 'DiscoverDevices') {
+            return $this->DiscoverDevices();
         }
+
+        return $this->SendMQTTCommand($Ident, $Value);
     }
 
     public function TestConnection()
@@ -223,6 +221,96 @@ class ToshibaAC extends IPSModule
         foreach ($devices as $device) { $options[] = ['caption' => "{$device['name']} ({$device['id']})", 'value' => $device['id']]; }
         foreach ($form['elements'] as &$element) { if (($element['name'] ?? '') === 'DeviceID') { $element['options'] = $options; } }
         return json_encode($form);
+    }
+    private function SendMQTTCommand($ident, $value)
+    {
+        if (!$this->EnsureLogin()) {
+            echo "❌ Login fehlgeschlagen.\n";
+            return false;
+        }
+
+        $current = GetValueString($this->GetIDForIdent('TOSH_ACStateData'));
+        $newState = ToshibaACMQTTHelper::buildState($current, $ident, $value);
+
+        if ($newState === '') {
+            echo "❌ State konnte nicht gebaut werden.\n";
+            return false;
+        }
+
+        $deviceId = ToshibaACMQTTHelper::mobileDeviceId($this->ReadPropertyString('Username'));
+        $sas = $this->RegisterMobileDevice($deviceId);
+
+        if (!$sas) {
+            echo "❌ SAS Token holen fehlgeschlagen.\n";
+            return false;
+        }
+
+        $host = 'toshibasmaciothubprod.azure-devices.net';
+        $clientId = $deviceId;
+        $mqttUser = $host . '/' . $deviceId . '/?api-version=2021-04-12';
+        $topic = 'devices/' . $deviceId . '/messages/events/type=mob';
+
+        $payload = ToshibaACMQTTHelper::commandPayload(
+            $deviceId,
+            $this->ResolveACUniqueId(),
+            $newState
+        );
+
+        try {
+            $mqtt = new ToshibaACMQTTClient();
+            $mqtt->connect($host, $clientId, $mqttUser, $sas);
+            $mqtt->publish($topic, $payload);
+            $mqtt->disconnect();
+
+            SetValue($this->GetIDForIdent($ident), $value);
+            SetValueString($this->GetIDForIdent('TOSH_WriteInfo'), 'MQTT gesendet: ' . $ident);
+
+            IPS_Sleep(1500);
+            $this->GetStatus();
+
+            return true;
+        } catch (Exception $e) {
+            echo '❌ MQTT Fehler: ' . $e->getMessage() . "\n";
+            SetValueString($this->GetIDForIdent('TOSH_WriteInfo'), 'MQTT Fehler: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    private function RegisterMobileDevice($deviceId)
+    {
+        $payload = json_encode([
+            'DeviceID' => $deviceId,
+            'DeviceType' => '1',
+            'Username' => $this->ReadPropertyString('Username')
+        ]);
+
+        $result = $this->QueryAPI(
+            'https://mobileapi.toshibahomeaccontrols.com/api/Consumer/RegisterMobileDevice',
+            $payload,
+            $this->GetBuffer('AccessToken')
+        );
+
+        return $result['ResObj']['SasToken'] ?? false;
+    }
+
+    private function ResolveACUniqueId()
+    {
+        $uniqueId = $this->GetBuffer('LastACUniqueId');
+
+        if ($uniqueId !== '') {
+            return $uniqueId;
+        }
+
+        $selected = $this->ReadPropertyString('DeviceID');
+        $devices = json_decode($this->GetBuffer('DiscoveredDevices'), true) ?: [];
+
+        foreach ($devices as $device) {
+            if (($device['id'] ?? '') === $selected) {
+                return $device['uniqueId'] ?? '';
+            }
+        }
+
+        return '';
     }
 
     private function EnsureLogin()
