@@ -150,11 +150,9 @@ class ToshibaAC extends IPSModule
 
         SetValueFloat($this->GetIDForIdent('TOSH_RoomTemp'), $decoded['RoomTemp']);
 
-        if (!$freezeControls) { SetValueInteger($this->GetIDForIdent('TOSH_FanSpeed'), $decoded['FanSpeed']); }
         if (!$freezeControls) { SetValueInteger($this->GetIDForIdent('TOSH_AirFlow'), $decoded['AirFlow']); }
         if (!$freezeControls) { SetValueBoolean($this->GetIDForIdent('TOSH_Swing'), $decoded['Swing']); }
         if (!$freezeControls) { SetValueBoolean($this->GetIDForIdent('TOSH_EcoMode'), $decoded['EcoMode']); }
-        if (!$freezeControls) { SetValueBoolean($this->GetIDForIdent('TOSH_SilentMode'), $decoded['SilentMode']); }
 
         SetValueString($this->GetIDForIdent('TOSH_ACStateData'), $hex);
         SetValueString($this->GetIDForIdent('TOSH_ACStateBytes'), $this->FormatACStateBytes($hex));
@@ -208,14 +206,14 @@ class ToshibaAC extends IPSModule
 
     private function DecodeACStateData(string $hex)
     {
-        $bytes=str_split($hex,2); $feature=isset($bytes[5])?hexdec($bytes[5]):0; $fanRaw=isset($bytes[3])?hexdec($bytes[3]):0; $modeRaw=isset($bytes[1])?hexdec($bytes[1]):0; $airFlowRaw=isset($bytes[3])?hexdec($bytes[3]):0;
+        $bytes=str_split($hex,2); $feature=isset($bytes[5])?hexdec($bytes[5]):0; $modeRaw=isset($bytes[1])?hexdec($bytes[1]):0; $airFlowRaw=isset($bytes[3])?hexdec($bytes[3]):0;
         return [
             'Power'=>isset($bytes[0])?(hexdec($bytes[0])===0x30):false,'PowerRaw'=>$bytes[0]??'',
             'Mode'=>ToshibaACMQTTHelper::mapModeFromRaw($modeRaw),'ModeRaw'=>$bytes[1]??'',
             'SetTemp'=>isset($bytes[2])?hexdec($bytes[2]):0,'SetTempRaw'=>$bytes[2]??'',
-            'FanMode'=>ToshibaACMQTTHelper::mapFanFromRaw($fanRaw),'FanModeRaw'=>$bytes[3]??'',
-            'Feature'=>$feature,'FeatureRaw'=>$bytes[5]??'','EcoMode'=>($feature===3),'SilentMode'=>($fanRaw===0x31 && $feature===0),
-            'FanSpeed'=>ToshibaACMQTTHelper::mapFanFromRaw($fanRaw),'FanSpeedRaw'=>$bytes[3]??'',
+            'FanMode'=>null,'FanModeRaw'=>'',
+            'Feature'=>$feature,'FeatureRaw'=>$bytes[5]??'','EcoMode'=>($feature===3),'SilentMode'=>false,
+            'FanSpeed'=>null,'FanSpeedRaw'=>'',
             'RoomTemp'=>isset($bytes[8])?hexdec($bytes[8]):0,'RoomTempRaw'=>$bytes[8]??'',
             'AirFlow'=>ToshibaACMQTTHelper::mapAirFlowFromRaw($airFlowRaw),'AirFlowRaw'=>$bytes[3]??'',
             'Swing'=>in_array($airFlowRaw, [0x41, 0x42, 0x43], true),'SwingRaw'=>$bytes[3]??'',
