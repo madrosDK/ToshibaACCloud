@@ -25,6 +25,7 @@ class ToshibaAC extends IPSModule
         $this->EnableAction('TOSH_FanSpeed');
         $this->RegisterVariableBoolean('TOSH_Swing', 'Swing', '~Switch', 60);
         $this->EnableAction('TOSH_Swing');
+        $this->RegisterVariableBoolean('TOSH_EcoMode', 'Eco-Modus', '~Switch', 65);
 
         $this->RegisterVariableString('TOSH_Firmware', 'Firmware', '', 70);
         $this->RegisterVariableString('TOSH_LastUpdate', 'Letztes Update', '', 80);
@@ -112,6 +113,7 @@ class ToshibaAC extends IPSModule
             SetValueFloat($this->GetIDForIdent('TOSH_RoomTemp'), $decoded['RoomTemp']);
             SetValueInteger($this->GetIDForIdent('TOSH_FanSpeed'), $decoded['FanSpeed']);
             SetValueBoolean($this->GetIDForIdent('TOSH_Swing'), $decoded['Swing']);
+            SetValueBoolean($this->GetIDForIdent('TOSH_EcoMode'), $decoded['EcoMode']);
             SetValueString($this->GetIDForIdent('TOSH_ACStateData'), $hex);
             SetValueString($this->GetIDForIdent('TOSH_ACStateBytes'), $this->FormatACStateBytes($hex));
             SetValueString($this->GetIDForIdent('TOSH_DecodedState'), json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
@@ -226,6 +228,7 @@ class ToshibaAC extends IPSModule
     private function DecodeACStateData(string $hex)
     {
         $bytes = str_split($hex, 2);
+        $feature = isset($bytes[5]) ? hexdec($bytes[5]) : 0;
         return [
             'Power' => isset($bytes[0]) ? (hexdec($bytes[0]) === 0x30) : false,
             'PowerRaw' => $bytes[0] ?? '',
@@ -233,10 +236,17 @@ class ToshibaAC extends IPSModule
             'ModeRaw' => $bytes[1] ?? '',
             'SetTemp' => isset($bytes[2]) ? hexdec($bytes[2]) : 0,
             'SetTempRaw' => $bytes[2] ?? '',
+            'FanMode' => isset($bytes[3]) ? hexdec($bytes[3]) : 0,
+            'FanModeRaw' => $bytes[3] ?? '',
+            'Feature' => $feature,
+            'FeatureRaw' => $bytes[5] ?? '',
+            'EcoMode' => ($feature === 3),
             'FanSpeed' => isset($bytes[7]) ? hexdec($bytes[7]) : 0,
             'FanSpeedRaw' => $bytes[7] ?? '',
             'RoomTemp' => isset($bytes[8]) ? hexdec($bytes[8]) : 0,
             'RoomTempRaw' => $bytes[8] ?? '',
+            'AirFlow' => isset($bytes[9]) ? hexdec($bytes[9]) : 0,
+            'AirFlowRaw' => $bytes[9] ?? '',
             'Swing' => isset($bytes[10]) ? (hexdec($bytes[10]) > 0) : false,
             'SwingRaw' => $bytes[10] ?? '',
             'ByteCount' => count($bytes),
