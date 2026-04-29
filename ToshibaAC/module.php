@@ -15,20 +15,16 @@ class ToshibaAC extends IPSModule
         $this->RegisterTimer('UpdateTimer', 0, 'TOSH_GetStatus($_IPS["TARGET"]);');
 
         $this->RegisterVariableBoolean('TOSH_Power', 'Power', '~Switch', 10);
-        $this->EnableAction('TOSH_Power');
         $this->RegisterVariableFloat('TOSH_SetTemp', 'Soll-Temperatur', '~Temperature.Room', 20);
-        $this->EnableAction('TOSH_SetTemp');
         $this->RegisterVariableFloat('TOSH_RoomTemp', 'Ist-Temperatur', '~Temperature.Room', 30);
         $this->RegisterVariableInteger('TOSH_Mode', 'Modus', 'TOSH.Mode', 40);
-        $this->EnableAction('TOSH_Mode');
         $this->RegisterVariableInteger('TOSH_FanSpeed', 'Lüfterstufe', 'TOSH.FanSpeed', 50);
-        $this->EnableAction('TOSH_FanSpeed');
         $this->RegisterVariableBoolean('TOSH_Swing', 'Swing', '~Switch', 60);
-        $this->EnableAction('TOSH_Swing');
         $this->RegisterVariableBoolean('TOSH_EcoMode', 'Eco-Modus', '~Switch', 65);
-        $this->EnableAction('TOSH_EcoMode');
         $this->RegisterVariableBoolean('TOSH_SilentMode', 'Silent-Modus', '~Switch', 66);
-        $this->EnableAction('TOSH_SilentMode');
+
+        $this->RegisterVariableString('TOSH_WriteInfo', 'Schreiben', '', 67);
+        SetValueString($this->GetIDForIdent('TOSH_WriteInfo'), 'Schreiben erfolgt nicht per REST. Nächster Schritt: native PHP AMQP/Azure IoT Implementierung.');
 
         $this->RegisterVariableString('TOSH_Firmware', 'Firmware', '', 70);
         $this->RegisterVariableString('TOSH_LastUpdate', 'Letztes Update', '', 80);
@@ -52,9 +48,9 @@ class ToshibaAC extends IPSModule
             case 'DiscoverDevices':
                 return $this->DiscoverDevices();
             default:
-                SetValue($this->GetIDForIdent($Ident), $Value);
-                $this->SendCommand();
-                return true;
+                echo "❌ Schreiben ist aktuell deaktiviert. Toshiba nutzt dafür Azure IoT Hub/AMQP (CMD_FCU_TO_AC), nicht den bisherigen REST-Payload.\n";
+                SetValueString($this->GetIDForIdent('TOSH_WriteInfo'), 'Schreiben deaktiviert: AMQP/Azure IoT Implementierung erforderlich.');
+                return false;
         }
     }
 
@@ -170,36 +166,6 @@ class ToshibaAC extends IPSModule
         foreach ($devices as $device) { $options[] = ['caption' => "{$device['name']} ({$device['id']})", 'value' => $device['id']]; }
         foreach ($form['elements'] as &$element) { if (($element['name'] ?? '') === 'DeviceID') { $element['options'] = $options; } }
         return json_encode($form);
-    }
-
-    private function SendCommand()
-    {
-        if (!$this->EnsureLogin()) { $this->DebugLog(__FUNCTION__, 'Login fehlgeschlagen'); return; }
-        $accessToken = $this->GetBuffer('AccessToken');
-        $acId = $this->ReadPropertyString('DeviceID');
-        if ($acId === '') { $this->DebugLog(__FUNCTION__, 'Keine DeviceID gewählt.'); echo "❌ Keine DeviceID gewählt.\n"; return; }
-
-        $eco = GetValueBoolean($this->GetIDForIdent('TOSH_EcoMode'));
-        $silent = GetValueBoolean($this->GetIDForIdent('TOSH_SilentMode'));
-
-        $fanMode = $silent ? 0x31 : ($eco ? 0x50 : 0x31);
-        $feature = $eco ? 0x03 : 0x00;
-
-        $payload = [
-            'ACId' => $acId,
-            'Power' => GetValueBoolean($this->GetIDForIdent('TOSH_Power')) ? 1 : 0,
-            'OperationMode' => GetValueInteger($this->GetIDForIdent('TOSH_Mode')),
-            'TargetTemperature' => GetValueFloat($this->GetIDForIdent('TOSH_SetTemp')),
-            'AirSwingLR' => GetValueBoolean($this->GetIDForIdent('TOSH_Swing')) ? 'auto' : 'stop',
-            'FanSpeed' => GetValueInteger($this->GetIDForIdent('TOSH_FanSpeed')),
-            'EcoMode' => $eco ? 1 : 0,
-            'SilentMode' => $silent ? 1 : 0,
-            'FanMode' => $fanMode,
-            'Feature' => $feature,
-        ];
-        $result = $this->QueryAPI('https://mobileapi.toshibahomeaccontrols.com/api/AC/SetACState', json_encode($payload), $accessToken);
-        $this->DebugLog(__FUNCTION__, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        $this->DebugLog(__FUNCTION__ . ' Result', json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
     }
 
     private function EnsureLogin()
