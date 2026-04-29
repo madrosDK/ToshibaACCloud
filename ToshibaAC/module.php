@@ -26,6 +26,9 @@ class ToshibaAC extends IPSModule
         $this->RegisterVariableBoolean('TOSH_Swing', 'Swing', '~Switch', 60);
         $this->EnableAction('TOSH_Swing');
         $this->RegisterVariableBoolean('TOSH_EcoMode', 'Eco-Modus', '~Switch', 65);
+        $this->EnableAction('TOSH_EcoMode');
+        $this->RegisterVariableBoolean('TOSH_SilentMode', 'Silent-Modus', '~Switch', 66);
+        $this->EnableAction('TOSH_SilentMode');
 
         $this->RegisterVariableString('TOSH_Firmware', 'Firmware', '', 70);
         $this->RegisterVariableString('TOSH_LastUpdate', 'Letztes Update', '', 80);
@@ -114,6 +117,7 @@ class ToshibaAC extends IPSModule
             SetValueInteger($this->GetIDForIdent('TOSH_FanSpeed'), $decoded['FanSpeed']);
             SetValueBoolean($this->GetIDForIdent('TOSH_Swing'), $decoded['Swing']);
             SetValueBoolean($this->GetIDForIdent('TOSH_EcoMode'), $decoded['EcoMode']);
+            SetValueBoolean($this->GetIDForIdent('TOSH_SilentMode'), $decoded['SilentMode']);
             SetValueString($this->GetIDForIdent('TOSH_ACStateData'), $hex);
             SetValueString($this->GetIDForIdent('TOSH_ACStateBytes'), $this->FormatACStateBytes($hex));
             SetValueString($this->GetIDForIdent('TOSH_DecodedState'), json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
@@ -174,6 +178,13 @@ class ToshibaAC extends IPSModule
         $accessToken = $this->GetBuffer('AccessToken');
         $acId = $this->ReadPropertyString('DeviceID');
         if ($acId === '') { $this->DebugLog(__FUNCTION__, 'Keine DeviceID gewählt.'); echo "❌ Keine DeviceID gewählt.\n"; return; }
+
+        $eco = GetValueBoolean($this->GetIDForIdent('TOSH_EcoMode'));
+        $silent = GetValueBoolean($this->GetIDForIdent('TOSH_SilentMode'));
+
+        $fanMode = $silent ? 0x31 : ($eco ? 0x50 : 0x31);
+        $feature = $eco ? 0x03 : 0x00;
+
         $payload = [
             'ACId' => $acId,
             'Power' => GetValueBoolean($this->GetIDForIdent('TOSH_Power')) ? 1 : 0,
@@ -181,9 +192,14 @@ class ToshibaAC extends IPSModule
             'TargetTemperature' => GetValueFloat($this->GetIDForIdent('TOSH_SetTemp')),
             'AirSwingLR' => GetValueBoolean($this->GetIDForIdent('TOSH_Swing')) ? 'auto' : 'stop',
             'FanSpeed' => GetValueInteger($this->GetIDForIdent('TOSH_FanSpeed')),
+            'EcoMode' => $eco ? 1 : 0,
+            'SilentMode' => $silent ? 1 : 0,
+            'FanMode' => $fanMode,
+            'Feature' => $feature,
         ];
         $result = $this->QueryAPI('https://mobileapi.toshibahomeaccontrols.com/api/AC/SetACState', json_encode($payload), $accessToken);
-        $this->DebugLog(__FUNCTION__, json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        $this->DebugLog(__FUNCTION__, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        $this->DebugLog(__FUNCTION__ . ' Result', json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
     }
 
     private function EnsureLogin()
@@ -229,6 +245,7 @@ class ToshibaAC extends IPSModule
     {
         $bytes = str_split($hex, 2);
         $feature = isset($bytes[5]) ? hexdec($bytes[5]) : 0;
+        $fanMode = isset($bytes[3]) ? hexdec($bytes[3]) : 0;
         return [
             'Power' => isset($bytes[0]) ? (hexdec($bytes[0]) === 0x30) : false,
             'PowerRaw' => $bytes[0] ?? '',
@@ -236,11 +253,12 @@ class ToshibaAC extends IPSModule
             'ModeRaw' => $bytes[1] ?? '',
             'SetTemp' => isset($bytes[2]) ? hexdec($bytes[2]) : 0,
             'SetTempRaw' => $bytes[2] ?? '',
-            'FanMode' => isset($bytes[3]) ? hexdec($bytes[3]) : 0,
+            'FanMode' => $fanMode,
             'FanModeRaw' => $bytes[3] ?? '',
             'Feature' => $feature,
             'FeatureRaw' => $bytes[5] ?? '',
             'EcoMode' => ($feature === 3),
+            'SilentMode' => ($fanMode === 0x31 && $feature === 0),
             'FanSpeed' => isset($bytes[7]) ? hexdec($bytes[7]) : 0,
             'FanSpeedRaw' => $bytes[7] ?? '',
             'RoomTemp' => isset($bytes[8]) ? hexdec($bytes[8]) : 0,
