@@ -37,20 +37,6 @@ class ToshibaACMQTTHelper
         return $map[$v] ?? $v;
     }
 
-    public static function mapAirFlowToRaw($value): int
-    {
-        $v = (int)$value;
-        $map = [0 => 0x31, 1 => 0x41, 2 => 0x42, 3 => 0x43, 4 => 0x50, 5 => 0x51, 6 => 0x52, 7 => 0x53, 8 => 0x54];
-        return $map[$v] ?? $v;
-    }
-
-    public static function mapAirFlowFromRaw($value): int
-    {
-        $v = (int)$value;
-        $map = [0x31 => 0, 0x41 => 1, 0x42 => 2, 0x43 => 3, 0x50 => 4, 0x51 => 5, 0x52 => 6, 0x53 => 7, 0x54 => 8];
-        return $map[$v] ?? $v;
-    }
-
     public static function buildState(string $currentHex, string $ident, $value): string
     {
         $bytes = str_split($currentHex, 2);
@@ -82,8 +68,7 @@ class ToshibaACMQTTHelper
                 break;
 
             case 'TOSH_AirFlow':
-                $bytes[3] = sprintf('%02x', self::mapAirFlowToRaw($value));
-                break;
+                return '';
 
             case 'TOSH_EcoMode':
                 $bytes[5] = $value ? '03' : '00';
